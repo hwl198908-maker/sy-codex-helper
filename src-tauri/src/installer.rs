@@ -38,7 +38,7 @@ pub fn download_and_open_codex(base_url: String) -> Result<InstallStatus, String
     let package = select_codex_windows_package(&manifest)
         .ok_or_else(|| "镜像清单中没有 Codex Windows 安装包。".to_string())?;
     let target_path = download_package(package)?;
-    open_installer(&target_path)?;
+    open_installer(package, &target_path)?;
 
     Ok(InstallStatus {
         installed: false,
@@ -163,11 +163,7 @@ fn read_local_manifest(base_url: &str) -> Result<Option<MirrorManifest>, String>
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .find(|entry_path| {
-            entry_path.is_file()
-                && entry_path
-                    .extension()
-                    .and_then(|value| value.to_str())
-                    .is_some_and(|extension| extension.eq_ignore_ascii_case("exe"))
+            entry_path.is_file() && is_supported_install_package(entry_path)
         })
         .ok_or_else(|| "本地镜像目录中没有找到 Windows 安装包。".to_string())?;
 
@@ -240,14 +236,66 @@ fn is_direct_package_url(value: &str) -> bool {
     lower.ends_with(".exe")
         || lower.ends_with(".msix")
         || lower.ends_with(".msixbundle")
+        || lower.ends_with(".zip")
         || lower == "https://codexapp.agentsmirror.com/latest/win"
 }
 
-fn open_installer(path: &std::path::Path) -> Result<(), String> {
+fn is_supported_install_package(path: &Path) -> bool {
+    path.extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("exe")
+                || extension.eq_ignore_ascii_case("msix")
+                || extension.eq_ignore_ascii_case("msixbundle")
+                || extension.eq_ignore_ascii_case("zip")
+        })
+}
+
+fn open_installer(package: &MirrorToolPackage, path: &std::path::Path) -> Result<(), String> {
+    if package.package_url.to_ascii_lowercase().ends_with(".zip")
+        || path
+            .extension()
+            .and_then(|value| value.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        return install_zip_package(path);
+    }
+
     Command::new("cmd")
         .args(["/C", "start", "", &path.to_string_lossy()])
         .spawn()
         .map_err(|err| format!("打开安装程序失败：{err}"))?;
+    Ok(())
+}
+
+fn install_zip_package(path: &std::path::Path) -> Result<(), String> {
+    let install_dir = dirs::data_local_dir()
+        .ok_or_else(|| "无法定位本地 Codex 安装目录。".to_string())?
+        .join("OpenAI")
+        .join("Codex");
+    fs::create_dir_all(&install_dir).map_err(|err| format!("创建 Codex 安装目录失败：{err}"))?;
+
+    let status = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
+            &path.to_string_lossy(),
+            &install_dir.to_string_lossy(),
+        ])
+        .status()
+        .map_err(|err| format!("解压 Codex ZIP 包失败：{err}"))?;
+
+    if !status.success() {
+        return Err("解压 Codex ZIP 包失败，请检查压缩包是否完整。".to_string());
+    }
+
+    if find_codex_in_openai_install().is_none() {
+        return Err("ZIP 包已解压，但没有找到 codex.exe。".to_string());
+    }
+
     Ok(())
 }
 
@@ -408,9 +456,20 @@ mod tests {
     }
 
     #[test]
+    fn treats_zip_url_as_direct_package() {
+        let manifest = direct_package_manifest("https://mirror.test/codex-clean.zip")
+            .expect("direct package")
+            .expect("manifest");
+        let package = select_codex_windows_package(&manifest).expect("codex package");
+
+        assert_eq!(package.package_url, "https://mirror.test/codex-clean.zip");
+        assert_eq!(download_file_name(package), "codex-clean.zip");
+    }
+
+    #[test]
     fn reads_local_directory_as_manifest() {
         let temp_dir = tempfile::tempdir().expect("temp dir");
-        let package_path = temp_dir.path().join("Codex Installer.exe");
+        let package_path = temp_dir.path().join("Codex Installer.zip");
         fs::write(&package_path, "fake installer").expect("package");
 
         let manifest = read_local_manifest(temp_dir.path().to_str().expect("path"))
