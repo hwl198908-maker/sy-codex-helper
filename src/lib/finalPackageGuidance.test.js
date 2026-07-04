@@ -65,6 +65,14 @@ describe("final package guidance", () => {
     expect(completeStep).not.toContain("%APPDATA%\\codex-manager");
   });
 
+  it("opens update downloads through the Tauri opener plugin", () => {
+    const completeStep = readProjectFile("src/components/CompleteStep.tsx");
+
+    expect(completeStep).toContain("@tauri-apps/plugin-opener");
+    expect(completeStep).toContain("openUrl");
+    expect(completeStep).not.toContain("window.open");
+  });
+
   it("does not expose provider loading through the Tauri invoke list", () => {
     const tauriLib = readProjectFile("src-tauri/src/lib.rs");
 

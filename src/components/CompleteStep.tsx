@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   Alert,
   Anchor,
@@ -58,8 +59,13 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
     }
   }
 
-  function openDownload(url: string) {
-    window.open(url, "_blank", "noopener,noreferrer");
+  async function openDownload(url: string) {
+    try {
+      await openUrl(url);
+      setUpdateStatus("已打开新版下载链接，请在浏览器中下载安装。");
+    } catch (error) {
+      setUpdateStatus(`打开下载链接失败：${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   return (
@@ -116,7 +122,7 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
         <Group>
           <Button variant="default" onClick={checkUpdate} loading={isCheckingUpdate}>检查更新</Button>
           {updateManifest && isNewerVersion(APP_VERSION, updateManifest.version) && (
-            <Button variant="light" onClick={() => openDownload(updateManifest.downloadUrl)}>下载新版</Button>
+            <Button variant="light" onClick={() => void openDownload(updateManifest.downloadUrl)}>下载新版</Button>
           )}
         </Group>
 
