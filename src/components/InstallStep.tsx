@@ -68,6 +68,6 @@ export function InstallStep() {
 
 function findCodexWindowsPackage(manifest: MirrorManifest): MirrorToolPackage | undefined {
   return manifest.tools.find(
-    (tool) => tool.tool_id === "codex" && tool.platform === "windows-x64",
+    (tool) => tool.toolId === "codex" && tool.platform === "windows-x64",
   );
 }

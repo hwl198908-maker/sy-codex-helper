@@ -14,12 +14,12 @@ export type MirrorManifest = {
 };
 
 export type MirrorToolPackage = {
-  tool_id: string;
+  toolId: string;
   version: string;
   platform: string;
-  package_url: string;
-  checksum_sha256: string;
-  release_notes: string;
+  packageUrl: string;
+  checksumSha256: string;
+  releaseNotes?: string;
 };
 
 export type ProviderProtocol = "responses" | "chat_completions";
