@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { parseModelList, validateProviderInput } from "./provider";
+import { buildModelsUrl, parseModelList, validateProviderInput } from "./provider";
+
+describe("buildModelsUrl", () => {
+  it("builds an OpenAI-compatible models URL", () => {
+    expect(buildModelsUrl("https://api.example.com/v1")).toBe("https://api.example.com/v1/models");
+    expect(buildModelsUrl("https://api.example.com/v1/")).toBe("https://api.example.com/v1/models");
+  });
+});
 
 describe("validateProviderInput", () => {
   it("accepts a valid OpenAI-compatible provider", () => {

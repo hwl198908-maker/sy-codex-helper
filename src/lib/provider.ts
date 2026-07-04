@@ -2,6 +2,10 @@ import type { ProviderConfig } from "../types";
 
 type ValidationResult = { ok: true } | { ok: false; message: string };
 
+export function buildModelsUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/models`;
+}
+
 export function validateProviderInput(config: ProviderConfig): ValidationResult {
   try {
     const url = new URL(config.baseUrl);
