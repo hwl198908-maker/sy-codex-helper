@@ -81,28 +81,26 @@ fn build_config_toml(existing_config: &str, provider: &CodexProviderConfig) -> S
     if preserved_config.trim().is_empty() {
         managed_config
     } else {
-        format!("{}\n\n{}", preserved_config.trim_end(), managed_config)
+        format!("{}\n\n{}", managed_config.trim_end(), preserved_config.trim_start())
     }
 }
 
 fn preserve_unmanaged_config(existing_config: &str) -> String {
     let mut preserved = Vec::new();
     let mut in_custom_provider = false;
-    let mut in_section = false;
 
     for line in existing_config.lines() {
         let trimmed = line.trim();
 
         if is_toml_header(trimmed) {
             in_custom_provider = trimmed == "[model_providers.custom]";
-            in_section = true;
         }
 
         if in_custom_provider {
             continue;
         }
 
-        if !in_section && is_managed_top_level_key(trimmed) {
+        if is_managed_top_level_key(trimmed) {
             continue;
         }
 
@@ -372,5 +370,57 @@ mod tests {
         let config_toml = build_managed_config_toml(&provider);
 
         assert!(config_toml.contains(r#"wire_api = "responses""#));
+    }
+
+    #[test]
+    fn repeated_writes_keep_managed_config_at_top_without_duplicates() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let config_dir = temp_dir.path();
+        fs::write(
+            config_dir.join("config.toml"),
+            concat!(
+                "model = \"old-model\"\n",
+                "model_provider = \"old-provider\"\n",
+                "\n",
+                "[model_providers.custom]\n",
+                "name = \"old custom\"\n",
+                "wire_api = \"responses\"\n",
+                "requires_openai_auth = true\n",
+                "base_url = \"https://old.test/v1\"\n",
+                "\n",
+                "[features]\n",
+                "memories = true\n",
+                "\n",
+                "[desktop]\n",
+                "followUpQueueMode = \"steer\"\n",
+                "\n",
+                "[projects.'d:\\codex+']\n",
+                "trust_level = \"trusted\"\n",
+                "\n",
+                "[windows]\n",
+                "sandbox = \"elevated\"\n"
+            ),
+        )
+        .expect("old config");
+
+        let provider = CodexProviderConfig {
+            name: "custom".to_string(),
+            base_url: "https://proxy.test/v1".to_string(),
+            api_key: "test-key".to_string(),
+            protocol: "responses".to_string(),
+            default_model: Some("gpt-5.5".to_string()),
+            user_agent: "CodexManager/1.0".to_string(),
+        };
+
+        write_codex_config(config_dir, &provider).expect("first write");
+        write_codex_config(config_dir, &provider).expect("second write");
+
+        let config_toml = fs::read_to_string(config_dir.join("config.toml")).expect("new config");
+        assert!(config_toml.starts_with("model = \"gpt-5.5\"\n"));
+        assert_eq!(config_toml.matches("\nmodel = ").count(), 0);
+        assert_eq!(config_toml.matches("model_provider = ").count(), 1);
+        assert_eq!(config_toml.matches("[model_providers.custom]").count(), 1);
+        assert!(config_toml.contains("[windows]\nsandbox = \"elevated\""));
+        assert!(config_toml.contains("[projects.'d:\\codex+']\ntrust_level = \"trusted\""));
     }
 }
