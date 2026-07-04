@@ -4,6 +4,16 @@ import { describe, expect, it } from "vitest";
 const readProjectFile = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
 describe("final package guidance", () => {
+  it("provides a default mirror address for the install step", () => {
+    const installStep = readProjectFile("src/components/InstallStep.tsx");
+    const defaults = readProjectFile("src/lib/defaults.ts");
+
+    expect(defaults).toContain("DEFAULT_MIRROR_BASE_URL");
+    expect(defaults).toContain("CodexWindows");
+    expect(installStep).toContain("DEFAULT_MIRROR_BASE_URL");
+    expect(installStep).not.toContain('const [mirrorBaseUrl, setMirrorBaseUrl] = useState("");');
+  });
+
   it("documents the supported Windows mirror manifest shape", () => {
     const readme = readProjectFile("README.md");
 
@@ -17,6 +27,7 @@ describe("final package guidance", () => {
     const completeStep = readProjectFile("src/components/CompleteStep.tsx");
 
     expect(completeStep).toContain("%USERPROFILE%\\.codex");
+    expect(completeStep).toContain("打开 Codex");
     expect(completeStep).toContain("保存 API 设置后");
     expect(completeStep).toContain("自动备份");
     expect(completeStep).not.toContain("等待接入保存命令");

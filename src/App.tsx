@@ -23,8 +23,8 @@ export default function App() {
     <main className="app-shell">
       <section className="hero" aria-labelledby="app-title">
         <p className="eyebrow">Codex 安装与配置管理器</p>
-        <h1 id="app-title">三步完成 Codex 安装和 API 配置</h1>
-        <p>适合第一次使用的用户：确认安装源、填写密钥、完成配置。</p>
+        <h1 id="app-title">四步完成 Codex 安装、配置和启动</h1>
+        <p>适合第一次使用的用户：选择工具、安装 Codex、填写密钥、打开 Codex。</p>
       </section>
 
       <nav className="steps" aria-label="安装步骤">

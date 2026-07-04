@@ -27,7 +27,9 @@ pub fn run() {
             greet,
             write_provider_config,
             save_provider_record,
+            installer::download_and_open_codex,
             installer::get_install_status,
+            installer::open_codex,
             installer::read_mirror_manifest
         ])
         .run(tauri::generate_context!())

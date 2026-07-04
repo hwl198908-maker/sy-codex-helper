@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{fs, path::Path, process::Command, time::Duration};
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct InstallStatus {
@@ -33,6 +33,35 @@ pub fn select_codex_windows_package(manifest: &MirrorManifest) -> Option<&Mirror
 }
 
 #[tauri::command]
+pub fn download_and_open_codex(base_url: String) -> Result<InstallStatus, String> {
+    let manifest = read_mirror_manifest(base_url)?;
+    let package = select_codex_windows_package(&manifest)
+        .ok_or_else(|| "镜像清单中没有 Codex Windows 安装包。".to_string())?;
+    let target_path = download_package(package)?;
+    open_installer(&target_path)?;
+
+    Ok(InstallStatus {
+        installed: false,
+        installed_version: None,
+        available_version: Some(package.version.clone()),
+        message: format!(
+            "已下载 Codex {} 并打开安装程序，请按安装向导完成安装。",
+            package.version
+        ),
+    })
+}
+
+#[tauri::command]
+pub fn open_codex() -> Result<(), String> {
+    let executable = find_codex_executable()
+        .ok_or_else(|| "没有找到 Codex 可执行文件，请先完成安装。".to_string())?;
+    Command::new(executable)
+        .spawn()
+        .map_err(|err| format!("打开 Codex 失败：{err}"))?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_install_status() -> Result<InstallStatus, String> {
     Ok(InstallStatus {
         installed: false,
@@ -44,6 +73,10 @@ pub fn get_install_status() -> Result<InstallStatus, String> {
 
 #[tauri::command]
 pub fn read_mirror_manifest(base_url: String) -> Result<MirrorManifest, String> {
+    if let Some(manifest) = read_local_manifest(&base_url)? {
+        return Ok(manifest);
+    }
+
     let manifest_url = build_manifest_url(&base_url)?;
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(10))
@@ -73,6 +106,136 @@ fn build_manifest_url(base_url: &str) -> Result<String, String> {
     }
 
     Ok(format!("{trimmed}/manifest.json"))
+}
+
+fn download_package(package: &MirrorToolPackage) -> Result<std::path::PathBuf, String> {
+    let local_path = Path::new(&package.package_url);
+    if local_path.exists() {
+        return Ok(local_path.to_path_buf());
+    }
+
+    let cache_dir = dirs::cache_dir()
+        .ok_or_else(|| "无法定位下载缓存目录。".to_string())?
+        .join("codex-manager")
+        .join("downloads");
+    fs::create_dir_all(&cache_dir).map_err(|err| format!("创建下载缓存目录失败：{err}"))?;
+
+    let target_path = cache_dir.join(download_file_name(package));
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|err| format!("创建下载请求失败：{err}"))?;
+    let mut response = client
+        .get(&package.package_url)
+        .send()
+        .map_err(|err| format!("下载 Codex 安装包失败：{err}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("安装包下载地址返回异常状态：{}", response.status()));
+    }
+
+    let mut file =
+        fs::File::create(&target_path).map_err(|err| format!("创建安装包文件失败：{err}"))?;
+    response
+        .copy_to(&mut file)
+        .map_err(|err| format!("保存安装包失败：{err}"))?;
+
+    Ok(target_path)
+}
+
+fn read_local_manifest(base_url: &str) -> Result<Option<MirrorManifest>, String> {
+    let path = Path::new(base_url.trim());
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    if path.is_file() {
+        return Ok(Some(MirrorManifest {
+            tools: vec![local_package(path)?],
+        }));
+    }
+
+    let codex_package = fs::read_dir(path)
+        .map_err(|err| format!("读取本地镜像目录失败：{err}"))?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .find(|entry_path| {
+            entry_path.is_file()
+                && entry_path
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("exe"))
+        })
+        .ok_or_else(|| "本地镜像目录中没有找到 Windows 安装包。".to_string())?;
+
+    Ok(Some(MirrorManifest {
+        tools: vec![local_package(&codex_package)?],
+    }))
+}
+
+fn local_package(path: &Path) -> Result<MirrorToolPackage, String> {
+    let package_url = path
+        .to_str()
+        .ok_or_else(|| "本地安装包路径包含无法识别的字符。".to_string())?
+        .to_string();
+
+    Ok(MirrorToolPackage {
+        tool_id: "codex".to_string(),
+        version: "local".to_string(),
+        platform: "windows-x64".to_string(),
+        package_url,
+        checksum_sha256: "local-file".to_string(),
+        release_notes: Some("本地默认安装包".to_string()),
+    })
+}
+
+fn download_file_name(package: &MirrorToolPackage) -> String {
+    reqwest::Url::parse(&package.package_url)
+        .ok()
+        .and_then(|url| {
+            url.path_segments()
+                .and_then(|mut segments| segments.next_back().map(str::to_string))
+        })
+        .filter(|name| !name.trim().is_empty())
+        .unwrap_or_else(|| format!("codex-{}-{}.exe", package.version, package.platform))
+}
+
+fn open_installer(path: &std::path::Path) -> Result<(), String> {
+    Command::new(path)
+        .spawn()
+        .map_err(|err| format!("打开安装程序失败：{err}"))?;
+    Ok(())
+}
+
+fn find_codex_executable() -> Option<std::path::PathBuf> {
+    std::env::var_os("CODEX_CLI_PATH")
+        .map(std::path::PathBuf::from)
+        .filter(|path| path.exists())
+        .or_else(find_codex_in_openai_install)
+        .or_else(|| find_codex_on_path())
+}
+
+fn find_codex_in_openai_install() -> Option<std::path::PathBuf> {
+    let base_dir = dirs::data_local_dir()?
+        .join("OpenAI")
+        .join("Codex")
+        .join("bin");
+    find_codex_under_bin_dir(&base_dir)
+}
+
+fn find_codex_under_bin_dir(base_dir: &Path) -> Option<std::path::PathBuf> {
+    fs::read_dir(base_dir)
+        .ok()?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path().join("codex.exe"))
+        .find(|path| path.exists())
+}
+
+fn find_codex_on_path() -> Option<std::path::PathBuf> {
+    let path_var = std::env::var_os("PATH")?;
+    std::env::split_paths(&path_var)
+        .map(|dir| dir.join("codex.exe"))
+        .find(|path| path.exists())
 }
 
 #[cfg(test)]
@@ -138,5 +301,59 @@ mod tests {
             "https://mirror.test/codex-2.3.4.zip"
         );
         assert!(serialized["tools"][0]["package_url"].is_null());
+    }
+
+    #[test]
+    fn builds_safe_download_file_name() {
+        let package = MirrorToolPackage {
+            tool_id: "codex".to_string(),
+            version: "2.3.4".to_string(),
+            platform: "windows-x64".to_string(),
+            package_url: "https://mirror.test/releases/codex-2.3.4.exe".to_string(),
+            checksum_sha256: "codex-checksum".to_string(),
+            release_notes: None,
+        };
+
+        assert_eq!(download_file_name(&package), "codex-2.3.4.exe");
+    }
+
+    #[test]
+    fn falls_back_to_versioned_download_file_name() {
+        let package = MirrorToolPackage {
+            tool_id: "codex".to_string(),
+            version: "2.3.4".to_string(),
+            platform: "windows-x64".to_string(),
+            package_url: "https://mirror.test/releases/".to_string(),
+            checksum_sha256: "codex-checksum".to_string(),
+            release_notes: None,
+        };
+
+        assert_eq!(download_file_name(&package), "codex-2.3.4-windows-x64.exe");
+    }
+
+    #[test]
+    fn reads_local_directory_as_manifest() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let package_path = temp_dir.path().join("Codex Installer.exe");
+        fs::write(&package_path, "fake installer").expect("package");
+
+        let manifest = read_local_manifest(temp_dir.path().to_str().expect("path"))
+            .expect("local manifest")
+            .expect("manifest");
+        let package = select_codex_windows_package(&manifest).expect("codex package");
+
+        assert_eq!(package.version, "local");
+        assert_eq!(package.package_url, package_path.to_str().expect("path"));
+    }
+
+    #[test]
+    fn finds_codex_under_versioned_bin_dir() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let codex_dir = temp_dir.path().join("abc123");
+        fs::create_dir_all(&codex_dir).expect("codex dir");
+        let codex_path = codex_dir.join("codex.exe");
+        fs::write(&codex_path, "fake exe").expect("codex exe");
+
+        assert_eq!(find_codex_under_bin_dir(temp_dir.path()), Some(codex_path));
     }
 }
