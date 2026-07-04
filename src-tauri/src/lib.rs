@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub mod config_writer;
+pub mod installer;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -16,7 +17,12 @@ fn write_provider_config(provider: config_writer::CodexProviderConfig) -> Result
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, write_provider_config])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            write_provider_config,
+            installer::get_install_status,
+            installer::read_mirror_manifest
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
