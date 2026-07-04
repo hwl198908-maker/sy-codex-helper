@@ -12,7 +12,7 @@ export function validateProviderInput(config: ProviderConfig): ValidationResult 
     return { ok: false, message: "Base URL（接口地址）格式不正确" };
   }
 
-  if (config.apiKey.trim().length < 3) {
+  if (config.apiKey.trim().length === 0) {
     return { ok: false, message: "API Key（密钥）不能为空" };
   }
 
