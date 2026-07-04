@@ -1,1 +1,1 @@
-export const DEFAULT_MIRROR_BASE_URL = "http://103.38.83.245/codex";
+export const DEFAULT_MIRROR_BASE_URL = "https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_x64-setup.exe";
