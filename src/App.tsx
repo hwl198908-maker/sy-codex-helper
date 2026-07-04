@@ -16,12 +16,12 @@ import {
 } from "@mantine/core";
 import "./styles.css";
 import type { ProviderFormState, WizardStep } from "./types";
-import { getNextStep, getPreviousStep } from "./lib/wizard";
+import { getNextStep } from "./lib/wizard";
 import { ToolStep } from "./components/ToolStep";
 import { InstallStep } from "./components/InstallStep";
 import { ProviderStep } from "./components/ProviderStep";
-import { StyleSettingsStep } from "./components/StyleSettingsStep";
 import { CompleteStep } from "./components/CompleteStep";
+import { StyleSettingsStep } from "./components/StyleSettingsStep";
 import { FeedbackStep } from "./components/FeedbackStep";
 import {
   DEFAULT_PROVIDER_BASE_URL,
@@ -41,31 +41,31 @@ const stepGuides: Record<WizardStep, StepGuide> = {
     label: "01",
     current: "选择 Codex，确认本次安装工具",
     next: "下一步下载 Codex 桌面 App",
-    action: "下一步：安装 Codex",
+    action: "下一步",
   },
   install: {
     label: "02",
     current: "下载并安装 Codex 桌面 App",
-    next: "安装完成后配置代理 API 和令牌",
-    action: "下一步：配置 API",
+    next: "下一步配置代理 API 和令牌",
+    action: "下一步",
   },
   provider: {
     label: "03",
     current: "配置代理 API、令牌和 GPT-5.5 模型",
-    next: "保存后进入设置风格页面",
-    action: "下一步：设置风格",
-  },
-  style: {
-    label: "04",
-    current: "设置界面风格和 Codex 中文增强",
-    next: "确认后打开 Codex 桌面 App",
-    action: "下一步：打开 Codex",
+    next: "保存后打开 Codex 桌面 App",
+    action: "下一步",
   },
   complete: {
-    label: "05",
+    label: "04",
     current: "完成配置，打开 Codex 桌面 App",
-    next: "最后可提交意见反馈，帮助后续更新",
-    action: "下一步：意见反馈",
+    next: "下一步进入设置风格页面",
+    action: "下一步",
+  },
+  style: {
+    label: "05",
+    current: "设置界面风格和 Codex 中文增强",
+    next: "下一步提交意见反馈",
+    action: "下一步",
   },
   feedback: {
     label: "06",
@@ -79,19 +79,19 @@ const stepLabels: Record<WizardStep, string> = {
   tool: "选择工具",
   install: "下载 Codex",
   provider: "配置 API",
-  style: "设置风格",
   complete: "打开 Codex",
+  style: "设置风格",
   feedback: "意见反馈",
 };
 
-const steps: WizardStep[] = ["tool", "install", "provider", "style", "complete", "feedback"];
+const steps: WizardStep[] = ["tool", "install", "provider", "complete", "style", "feedback"];
 
 const stepProgress: Record<WizardStep, number> = {
   tool: 16,
   install: 32,
   provider: 50,
-  style: 66,
-  complete: 84,
+  complete: 66,
+  style: 84,
   feedback: 100,
 };
 
@@ -145,25 +145,24 @@ export default function App() {
                   <Text fw={800}>{guide.current}</Text>
                   <Text c="dimmed" size="sm" mt={3}>{guide.next}</Text>
                 </Box>
-                <div className="guide-arrow">下一步</div>
+                <Button
+                  className="guide-next-button"
+                  radius="xl"
+                  variant="light"
+                  color="green"
+                  onClick={() => setStep(getNextStep(step))}
+                >
+                  {guide.action}
+                </Button>
               </Group>
             </Paper>
 
             {step === "tool" && <ToolStep />}
             {step === "install" && <InstallStep />}
             {step === "provider" && <ProviderStep form={providerForm} onFormChange={setProviderForm} />}
-            {step === "style" && <StyleSettingsStep />}
             {step === "complete" && <CompleteStep providerForm={providerForm} />}
+            {step === "style" && <StyleSettingsStep />}
             {step === "feedback" && <FeedbackStep />}
-
-            <Group justify="space-between" className="footer-actions">
-              <Button variant="default" size="md" onClick={() => setStep(getPreviousStep(step))} disabled={step === "tool"}>
-                上一步
-              </Button>
-              <Button size="md" className="next-button" onClick={() => setStep(getNextStep(step))}>
-                {guide.action}
-              </Button>
-            </Group>
           </Stack>
         </Container>
       </AppShell>

@@ -124,24 +124,10 @@ body {
   flex: 1;
 }
 
-.guide-arrow {
+.guide-next-button {
   flex: 0 0 auto;
-  border-radius: 999px;
-  padding: 8px 14px;
-  color: #14532d;
-  background: #dcfce7;
-  font-size: 0.78rem;
   font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-.next-button {
-  min-width: 190px;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.2);
-}
-
-.footer-actions {
-  padding-bottom: 4px;
+  min-width: 82px;
 }
 
 .finish-hero {

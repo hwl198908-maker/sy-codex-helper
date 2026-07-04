@@ -14,24 +14,30 @@ describe("final package guidance", () => {
     expect(installStep).not.toContain('const [mirrorBaseUrl, setMirrorBaseUrl] = useState("");');
   });
 
-  it("uses SY API as the beginner provider default", () => {
+  it("uses SY API and the simplified step guide", () => {
     const app = readProjectFile("src/App.tsx");
     const defaults = readProjectFile("src/lib/defaults.ts");
 
     expect(defaults).toContain("https://www.syapi.vip/v1");
     expect(defaults).toContain("gpt-5.5");
     expect(app).toContain("SY Codex（聚合安装）");
-    expect(app).toContain("下一步：安装 Codex");
-    expect(app).toContain("下一步：配置 API");
-    expect(app).toContain("下一步：打开 Codex");
+    expect(app).toContain("设置风格");
+    expect(app).toContain("意见反馈");
+    expect(app).toContain("guide-next-button");
+    expect(app).not.toContain("footer-actions");
     expect(app).toContain("ProviderFormState");
     expect(app).toContain("setProviderForm");
+  });
+
+  it("keeps style settings immediately before feedback", () => {
+    const wizard = readProjectFile("src/lib/wizard.ts");
+
+    expect(wizard).toContain('["tool", "install", "provider", "complete", "style", "feedback"]');
   });
 
   it("uses a fixed installer-style desktop window", () => {
     const tauriConfig = readProjectFile("src-tauri/tauri.conf.json");
 
-    expect(tauriConfig).toContain('"title": "SY Codex（聚合安装）"');
     expect(tauriConfig).toContain('"width": 980');
     expect(tauriConfig).toContain('"height": 720');
     expect(tauriConfig).toContain('"resizable": false');
@@ -53,18 +59,14 @@ describe("final package guidance", () => {
     expect(installStep).toContain("<Progress");
   });
 
-  it("describes the current completion behavior without live-state claims", () => {
+  it("keeps completion and feedback behavior discoverable", () => {
     const completeStep = readProjectFile("src/components/CompleteStep.tsx");
+    const feedbackStep = readProjectFile("src/components/FeedbackStep.tsx");
 
     expect(completeStep).toContain("%USERPROFILE%\\.codex");
-    expect(completeStep).toContain("打开 Codex 桌面 App");
-    expect(completeStep).toContain("第 4 步 / 最后一步");
-    expect(completeStep).toContain("保存 API 设置后");
-    expect(completeStep).toContain("自动备份");
-    expect(completeStep).toContain("检查更新");
-    expect(completeStep).toContain("Codex 中文页面/菜单增强");
     expect(completeStep).toContain("enhancedMenu");
-    expect(completeStep).not.toContain("%APPDATA%\\codex-manager");
+    expect(feedbackStep).toContain("submit_feedback");
+    expect(feedbackStep).toContain("FEEDBACK_ENDPOINT_URL");
   });
 
   it("opens update downloads through the Tauri opener plugin", () => {
