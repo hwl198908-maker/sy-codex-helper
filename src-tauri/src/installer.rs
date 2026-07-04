@@ -71,7 +71,9 @@ pub fn download_and_open_codex(
 pub fn open_codex() -> Result<(), String> {
     let executable = find_codex_executable()
         .ok_or_else(|| "没有找到 Codex 可执行文件，请先完成安装。".to_string())?;
+    let workspace = default_codex_workspace();
     Command::new(executable)
+        .args(build_codex_app_args(&workspace))
         .spawn()
         .map_err(|err| format!("打开 Codex 失败：{err}"))?;
     Ok(())
@@ -496,6 +498,18 @@ fn find_codex_on_path() -> Option<std::path::PathBuf> {
         .find(|path| path.exists())
 }
 
+fn default_codex_workspace() -> std::path::PathBuf {
+    std::env::current_dir()
+        .ok()
+        .or_else(|| std::env::var_os("USERPROFILE").map(std::path::PathBuf::from))
+        .or_else(|| std::env::var_os("HOME").map(std::path::PathBuf::from))
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+}
+
+fn build_codex_app_args(workspace: &Path) -> Vec<String> {
+    vec!["app".to_string(), workspace.to_string_lossy().to_string()]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -676,5 +690,15 @@ mod tests {
         fs::write(&codex_path, "fake exe").expect("codex exe");
 
         assert_eq!(find_codex_under_bin_dir(temp_dir.path()), Some(codex_path));
+    }
+
+    #[test]
+    fn launches_codex_desktop_app_command() {
+        let workspace = Path::new(r"D:\Codex Manager");
+
+        assert_eq!(
+            build_codex_app_args(workspace),
+            vec!["app".to_string(), r"D:\Codex Manager".to_string()]
+        );
     }
 }

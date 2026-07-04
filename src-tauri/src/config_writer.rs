@@ -133,6 +133,7 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
         .as_deref()
         .filter(|value| !value.is_empty())
         .unwrap_or("gpt-5");
+    let wire_api = codex_wire_api(&provider.protocol);
 
     format!(
         concat!(
@@ -143,13 +144,21 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
             "[model_providers.custom]\n",
             "name = {}\n",
             "base_url = {}\n",
-            "wire_api = \"responses\"\n",
+            "wire_api = {}\n",
             "requires_openai_auth = true\n"
         ),
         toml_string(model),
         toml_string(&provider.name),
-        toml_string(&provider.base_url)
+        toml_string(&provider.base_url),
+        toml_string(wire_api)
     )
+}
+
+fn codex_wire_api(protocol: &str) -> &str {
+    match protocol {
+        "chat_completions" => "chat",
+        _ => "responses",
+    }
 }
 
 fn build_auth_json(auth_path: &Path, api_key: &str) -> Result<String, String> {
@@ -217,7 +226,7 @@ mod tests {
         assert!(config_toml.contains(r#"cli_auth_credentials_store = "file""#));
         assert!(config_toml.contains(r#"model_provider = "custom""#));
         assert!(config_toml.contains(r#"base_url = "https://proxy.test/v1""#));
-        assert!(config_toml.contains(r#"wire_api = "responses""#));
+        assert!(config_toml.contains(r#"wire_api = "chat""#));
         assert!(config_toml.contains("requires_openai_auth = true"));
         assert!(!config_toml.contains("User-Agent"));
         assert!(!config_toml.contains("CodexManager/1.0"));
@@ -347,5 +356,21 @@ mod tests {
         assert!(!config_toml.contains("old custom"));
         assert!(!config_toml.contains("https://old.test/v1"));
         assert_eq!(config_toml.matches("[model_providers.custom]").count(), 1);
+    }
+
+    #[test]
+    fn writes_responses_protocol_for_responses_provider() {
+        let provider = CodexProviderConfig {
+            name: "Proxy Test".to_string(),
+            base_url: "https://proxy.test/v1".to_string(),
+            api_key: "test-key".to_string(),
+            protocol: "responses".to_string(),
+            default_model: Some("gpt-test".to_string()),
+            user_agent: "CodexManager/1.0".to_string(),
+        };
+
+        let config_toml = build_managed_config_toml(&provider);
+
+        assert!(config_toml.contains(r#"wire_api = "responses""#));
     }
 }

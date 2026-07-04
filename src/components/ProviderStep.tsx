@@ -35,7 +35,6 @@ function toCommandProvider(config: ProviderConfig): CommandProvider {
     name: config.name,
     base_url: config.baseUrl,
     api_key: config.apiKey,
-    // The Rust writer currently persists Codex wire_api as responses.
     protocol: config.protocol,
     default_model: config.defaultModel,
     user_agent: config.userAgent
