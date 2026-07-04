@@ -25,7 +25,8 @@ The manager should write or update only these keys:
 - `model_providers.custom.base_url`: provider Base URL.
 - `model_providers.custom.wire_api`: use `responses` for the Responses API path.
 - `model_providers.custom.requires_openai_auth`: set `true` when the provider should use the same API key stored by Codex auth.
-- `model_providers.custom.http_headers`: optional static headers, including optional User-Agent only if Codex accepts it in this map during implementation.
+- `cli_auth_credentials_store`: set or require `"file"` for the one-click file-writing path.
+- `model_providers.custom.http_headers`: optional static headers. For v1, do not write User-Agent into Codex config until Codex documents a supported header shape for this use.
 
 ### First-version provider block
 
@@ -35,10 +36,12 @@ model_provider = "custom"
 
 [model_providers.custom]
 name = "custom"
-base_url = "https://example.com/v1"
+base_url = "<user-entered-base-url>"
 wire_api = "responses"
 requires_openai_auth = true
 ```
+
+`<user-entered-base-url>` is documentation notation only. Task 7 writes the Base URL entered by the user, not this literal token.
 
 ### Protocol notes
 
@@ -62,7 +65,7 @@ The manager must never log or document the real key value.
 
 ### First-version write rule
 
-For `requires_openai_auth = true`, write the entered API key into the `OPENAI_API_KEY` field in `auth.json`, preserving unrelated fields when present.
+For `requires_openai_auth = true`, write the entered API key into the `OPENAI_API_KEY` field in `auth.json` only when Codex file credential storage is selected, preserving unrelated fields when present. The manager should set or require `cli_auth_credentials_store = "file"` before using the one-click file-writing path.
 
 ## Notes
 
@@ -70,4 +73,5 @@ For `requires_openai_auth = true`, write the entered API key into the `OPENAI_AP
 - Prefer `requires_openai_auth = true` for the first OpenAI-compatible proxy flow because it matches the local working config and official authentication guidance for LLM proxy servers backed by OpenAI auth.
 - `experimental_bearer_token` exists but is documented as discouraged, so the first version should not use it.
 - `env_key` is useful for environment-variable authentication, but it does not satisfy the product requirement that saving in the manager completes configuration without extra user environment setup.
+- Keep User-Agent in the manager/provider record only for v1; the config writer should not emit it into Codex config.
 - The config writer should back up existing `config.toml` and `auth.json` before modifying them.
