@@ -1,4 +1,5 @@
-use std::{fs, path::Path, process::Command, time::Duration};
+use sha2::{Digest, Sha256};
+use std::{fs, io::Read, path::Path, process::Command, time::Duration};
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct InstallStatus {
@@ -142,8 +143,46 @@ fn download_package(package: &MirrorToolPackage) -> Result<std::path::PathBuf, S
     response
         .copy_to(&mut file)
         .map_err(|err| format!("保存安装包失败：{err}"))?;
+    drop(file);
+
+    verify_package_checksum(package, &target_path)?;
 
     Ok(target_path)
+}
+
+fn verify_package_checksum(package: &MirrorToolPackage, path: &Path) -> Result<(), String> {
+    if matches!(
+        package.checksum_sha256.as_str(),
+        "local-file" | "mirror-direct"
+    ) {
+        return Ok(());
+    }
+
+    let expected = package.checksum_sha256.to_ascii_lowercase();
+    let actual = file_sha256(path)?;
+    if actual != expected {
+        return Err("安装包校验失败，请检查镜像文件是否完整。".to_string());
+    }
+
+    Ok(())
+}
+
+fn file_sha256(path: &Path) -> Result<String, String> {
+    let mut file = fs::File::open(path).map_err(|err| format!("读取安装包失败：{err}"))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0_u8; 64 * 1024];
+
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|err| format!("读取安装包失败：{err}"))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 fn read_local_manifest(base_url: &str) -> Result<Option<MirrorManifest>, String> {
@@ -464,6 +503,18 @@ mod tests {
 
         assert_eq!(package.package_url, "https://mirror.test/codex-clean.zip");
         assert_eq!(download_file_name(package), "codex-clean.zip");
+    }
+
+    #[test]
+    fn calculates_file_sha256() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let package_path = temp_dir.path().join("package.zip");
+        fs::write(&package_path, b"codex package").expect("package");
+
+        assert_eq!(
+            file_sha256(&package_path).expect("sha256"),
+            "ecec675b44cd12878ff1d953dc4f7f2df6a3761f01ba66ba8a39106fcc0ad114"
+        );
     }
 
     #[test]

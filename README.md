@@ -50,10 +50,10 @@ npm run tauri build
 
 ## 镜像清单格式
 
-安装页默认填入 `src/lib/defaults.ts` 中的 `DEFAULT_MIRROR_BASE_URL`。当前默认值指向 Codex App 镜像 Windows 最新包入口：
+安装页默认填入 `src/lib/defaults.ts` 中的 `DEFAULT_MIRROR_BASE_URL`。当前默认值指向自建 Codex 在线镜像：
 
 ```text
-https://codexapp.agentsmirror.com/latest/win
+http://103.38.83.245/codex
 ```
 
 这个入口用于下载镜像中的 Windows 安装包，不打开 Microsoft Store 页面。它不绕过 Windows 的 MSIX/AppX 安装策略；如果电脑被管理员禁止安装 MSIX/AppX，仍需要管理员放行。若要改成本地目录或企业内网镜像，替换这个常量即可。
@@ -75,7 +75,7 @@ https://codexapp.agentsmirror.com/latest/win
 }
 ```
 
-README 中的网络地址只是示例，不代表真实镜像服务。安装页会读取清单中的 `packageUrl`，下载 Windows 安装包，并打开安装程序。若 Base URL 是本地目录，应用会直接查找目录中的 Windows 安装包并打开；若 Base URL 是直接包地址，例如 `https://codexapp.agentsmirror.com/latest/win`，应用会直接下载并打开该包。
+安装页会读取 `<Base URL>/manifest.json` 中的 `packageUrl`，下载 Windows 安装包并执行安装流程。当前在线镜像提供的是已验证可运行的 Codex CLI 干净 ZIP 包；桌面 App 提取备份包保留在服务器上，但暂不接入一键安装流程。
 
 ## 使用流程
 

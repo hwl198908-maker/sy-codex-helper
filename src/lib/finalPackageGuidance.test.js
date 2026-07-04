@@ -9,7 +9,7 @@ describe("final package guidance", () => {
     const defaults = readProjectFile("src/lib/defaults.ts");
 
     expect(defaults).toContain("DEFAULT_MIRROR_BASE_URL");
-    expect(defaults).toContain("https://codexapp.agentsmirror.com/latest/win");
+    expect(defaults).toContain("http://103.38.83.245/codex");
     expect(installStep).toContain("DEFAULT_MIRROR_BASE_URL");
     expect(installStep).not.toContain('const [mirrorBaseUrl, setMirrorBaseUrl] = useState("");');
   });
