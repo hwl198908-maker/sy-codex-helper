@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub mod config_writer;
 pub mod installer;
+pub mod storage;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -13,6 +14,18 @@ fn write_provider_config(provider: config_writer::CodexProviderConfig) -> Result
     config_writer::write_codex_config(&config_dir, &provider)
 }
 
+#[tauri::command]
+fn save_provider_record(provider: config_writer::CodexProviderConfig) -> Result<(), String> {
+    storage::save_provider(&provider)
+}
+
+#[tauri::command]
+fn load_provider_record(
+    name: String,
+) -> Result<Option<config_writer::CodexProviderConfig>, String> {
+    storage::load_provider(&name)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -20,6 +33,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             write_provider_config,
+            save_provider_record,
+            load_provider_record,
             installer::get_install_status,
             installer::read_mirror_manifest
         ])

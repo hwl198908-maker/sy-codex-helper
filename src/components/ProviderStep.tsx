@@ -134,13 +134,16 @@ export function ProviderStep() {
     }
 
     try {
+      await invoke("save_provider_record", {
+        provider: toCommandProvider(config)
+      });
       await invoke("write_provider_config", {
         provider: toCommandProvider(config)
       });
       setStatus(
         modelStatus.includes("获取失败")
-          ? "本地状态：配置已保存。注意：模型列表获取失败，可稍后重试。"
-          : "本地状态：配置已保存。"
+          ? "本地状态：配置已安全保存。注意：模型列表获取失败，可稍后重试。"
+          : "本地状态：配置已安全保存。"
       );
     } catch (error) {
       setStatus(`本地状态：保存失败：${error instanceof Error ? error.message : String(error)}`);
