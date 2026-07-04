@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Codex Manager",
+  "productName": "SY Codex",
   "version": "0.1.0",
   "identifier": "com.codex.manager",
   "build": {
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "Codex Manager",
-        "width": 800,
-        "height": 600
+        "title": "SY Codex（聚合安装）",
+        "width": 980,
+        "height": 720,
+        "resizable": false,
+        "maximizable": false
       }
     ],
     "security": {

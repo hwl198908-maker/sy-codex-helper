@@ -27,11 +27,45 @@ import {
   DEFAULT_PROVIDER_PROTOCOL
 } from "./lib/defaults";
 
+type StepGuide = {
+  label: string;
+  current: string;
+  next: string;
+  action: string;
+};
+
+const stepGuides: Record<WizardStep, StepGuide> = {
+  tool: {
+    label: "01",
+    current: "选择 Codex，确认本次安装工具",
+    next: "下一步下载 Codex 桌面 App",
+    action: "下一步：安装 Codex",
+  },
+  install: {
+    label: "02",
+    current: "下载并安装 Codex 桌面 App",
+    next: "安装完成后配置代理 API 和令牌",
+    action: "下一步：配置 API",
+  },
+  provider: {
+    label: "03",
+    current: "配置代理 API、令牌和 GPT-5.5 模型",
+    next: "保存后打开 Codex 桌面 App 完成配置",
+    action: "下一步：打开 Codex",
+  },
+  complete: {
+    label: "04",
+    current: "完成配置，打开 Codex 桌面 App",
+    next: "最后一步：点击页面中的打开 Codex",
+    action: "完成",
+  },
+};
+
 const stepLabels: Record<WizardStep, string> = {
   tool: "选择工具",
-  install: "安装 Codex",
+  install: "下载 Codex",
   provider: "配置 API",
-  complete: "教程与启动",
+  complete: "打开 Codex",
 };
 
 const steps: WizardStep[] = ["tool", "install", "provider", "complete"];
@@ -51,24 +85,25 @@ export default function App() {
     protocol: DEFAULT_PROVIDER_PROTOCOL,
     selectedModel: DEFAULT_PROVIDER_MODEL,
   });
+  const guide = stepGuides[step];
 
   return (
     <MantineProvider defaultColorScheme="light">
       <AppShell className="app-bg">
-        <Container size="md" py="xl">
-          <Stack gap="lg">
-            <Paper className="hero-card" radius="md" p="xl">
+        <Container size={920} py="md">
+          <Stack gap="md">
+            <Paper className="hero-card" radius="md" p="lg">
               <Group justify="space-between" align="flex-start" gap="md">
                 <Box>
                   <Badge color="blue" variant="light">聚合安装</Badge>
-                  <Title id="app-title" order={1} mt="sm">SY Codex</Title>
-                  <Text c="dimmed" mt="xs">
-                    一键安装 Codex，预留 OpenClaw，并完成 SY API 中转配置。适合第一次使用的新手。
+                  <Title id="app-title" order={1} mt={8}>SY Codex（聚合安装）</Title>
+                  <Text c="dimmed" mt={6}>
+                    一键安装 Codex，预留 OpenClaw，并完成 SY API 中转配置。
                   </Text>
                 </Box>
                 <Badge size="lg" color="green" variant="filled">GPT-5.5</Badge>
               </Group>
-              <Progress value={stepProgress[step]} mt="lg" radius="xl" />
+              <Progress value={stepProgress[step]} mt="md" radius="xl" />
             </Paper>
 
             <nav className="steps" aria-label="安装步骤">
@@ -80,17 +115,28 @@ export default function App() {
               ))}
             </nav>
 
+            <Paper className="guide-card" radius="md" p="md">
+              <Group gap="md" align="center" wrap="nowrap">
+                <div className="guide-index">{guide.label}</div>
+                <Box className="guide-copy">
+                  <Text fw={800}>{guide.current}</Text>
+                  <Text c="dimmed" size="sm" mt={3}>{guide.next}</Text>
+                </Box>
+                <div className="guide-arrow">NEXT</div>
+              </Group>
+            </Paper>
+
             {step === "tool" && <ToolStep />}
             {step === "install" && <InstallStep />}
             {step === "provider" && <ProviderStep form={providerForm} onFormChange={setProviderForm} />}
             {step === "complete" && <CompleteStep providerForm={providerForm} />}
 
-            <Group justify="space-between">
-              <Button variant="default" onClick={() => setStep(getPreviousStep(step))} disabled={step === "tool"}>
+            <Group justify="space-between" className="footer-actions">
+              <Button variant="default" size="md" onClick={() => setStep(getPreviousStep(step))} disabled={step === "tool"}>
                 上一步
               </Button>
-              <Button onClick={() => setStep(getNextStep(step))}>
-                {step === "complete" ? "完成" : "下一步"}
+              <Button size="md" className="next-button" onClick={() => setStep(getNextStep(step))}>
+                {guide.action}
               </Button>
             </Group>
           </Stack>

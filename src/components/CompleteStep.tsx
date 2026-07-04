@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import {
   Alert,
   Anchor,
+  Badge,
   Button,
   Group,
   List,
@@ -22,7 +23,7 @@ type CompleteStepProps = {
 };
 
 export function CompleteStep({ providerForm }: CompleteStepProps) {
-  const [status, setStatus] = useState("安装和 API 配置完成后，可以在这里打开 Codex。");
+  const [status, setStatus] = useState("最后一步：点击上方按钮打开 Codex 桌面 App。");
   const [updateStatus, setUpdateStatus] = useState("尚未检查更新。");
   const [updateManifest, setUpdateManifest] = useState<UpdateManifest | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
@@ -63,14 +64,21 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
 
   return (
     <Paper className="panel" radius="md" p="xl">
-      <Stack gap="lg">
-        <div>
-          <Text className="eyebrow">最后一步</Text>
-          <Title order={2}>教程与启动</Title>
-          <Text c="dimmed" mt={6}>
-            确认配置后打开 Codex。下面也保留 API 配置教程和版本检查。
-          </Text>
-        </div>
+      <Stack gap="md">
+        <Paper className="finish-hero" radius="md" p="lg">
+          <Group justify="space-between" align="center" gap="md">
+            <div>
+              <Badge color="green" variant="filled">第 4 步 / 最后一步</Badge>
+              <Title order={2} mt={8}>完成配置，打开 Codex 桌面 App</Title>
+              <Text c="dimmed" mt={6}>
+                API 已保存后，点击右侧按钮启动 Codex，并在 Codex 中开始使用 GPT-5.5。
+              </Text>
+            </div>
+            <Button className="open-codex-button" size="xl" onClick={openCodex}>
+              打开 Codex 桌面 App
+            </Button>
+          </Group>
+        </Paper>
 
         <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
           <Paper withBorder radius="md" p="md">
@@ -107,7 +115,6 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
         </Alert>
 
         <Group>
-          <Button onClick={openCodex}>打开 Codex</Button>
           <Button variant="default" onClick={checkUpdate} loading={isCheckingUpdate}>检查更新</Button>
           {updateManifest && isNewerVersion(APP_VERSION, updateManifest.version) && (
             <Button variant="light" onClick={() => openDownload(updateManifest.downloadUrl)}>下载新版</Button>

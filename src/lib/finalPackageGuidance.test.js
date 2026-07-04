@@ -20,8 +20,21 @@ describe("final package guidance", () => {
 
     expect(defaults).toContain("https://www.syapi.vip/v1");
     expect(defaults).toContain("gpt-5.5");
+    expect(app).toContain("SY Codex（聚合安装）");
+    expect(app).toContain("下一步：安装 Codex");
+    expect(app).toContain("下一步：配置 API");
+    expect(app).toContain("下一步：打开 Codex");
     expect(app).toContain("ProviderFormState");
     expect(app).toContain("setProviderForm");
+  });
+
+  it("uses a fixed installer-style desktop window", () => {
+    const tauriConfig = readProjectFile("src-tauri/tauri.conf.json");
+
+    expect(tauriConfig).toContain('"title": "SY Codex（聚合安装）"');
+    expect(tauriConfig).toContain('"width": 980');
+    expect(tauriConfig).toContain('"height": 720');
+    expect(tauriConfig).toContain('"resizable": false');
   });
 
   it("documents the supported Windows mirror manifest shape", () => {
@@ -44,7 +57,8 @@ describe("final package guidance", () => {
     const completeStep = readProjectFile("src/components/CompleteStep.tsx");
 
     expect(completeStep).toContain("%USERPROFILE%\\.codex");
-    expect(completeStep).toContain("打开 Codex");
+    expect(completeStep).toContain("打开 Codex 桌面 App");
+    expect(completeStep).toContain("第 4 步 / 最后一步");
     expect(completeStep).toContain("保存 API 设置后");
     expect(completeStep).toContain("自动备份");
     expect(completeStep).toContain("检查更新");
