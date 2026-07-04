@@ -5,6 +5,10 @@ const LOCALIZATION_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 #[derive(serde::Deserialize)]
 struct InspectorTarget {
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    url: String,
     #[serde(rename = "type")]
     target_type: String,
     #[serde(rename = "webSocketDebuggerUrl")]
@@ -12,21 +16,60 @@ struct InspectorTarget {
 }
 
 pub fn spawn_native_menu_localizer(inspector_port: u16) {
-    spawn_localizer(inspector_port, target_is_node, native_menu_localizer_script);
+    spawn_localizer(
+        "native-menu",
+        inspector_port,
+        target_is_node,
+        native_menu_localizer_script,
+        false,
+    );
 }
 
 pub fn spawn_renderer_locale_localizer(debug_port: u16) {
-    spawn_localizer(debug_port, target_is_page, renderer_locale_localizer_script);
+    spawn_localizer(
+        "renderer-locale",
+        debug_port,
+        target_is_page,
+        renderer_locale_localizer_script,
+        true,
+    );
 }
 
-fn spawn_localizer(port: u16, target_filter: fn(&InspectorTarget) -> bool, script_builder: fn() -> String) {
+fn spawn_localizer(
+    name: &'static str,
+    port: u16,
+    target_filter: fn(&InspectorTarget) -> bool,
+    script_builder: fn() -> String,
+    register_new_document: bool,
+) {
     thread::spawn(move || {
-        for _ in 0..LOCALIZATION_RETRIES {
-            if install_localizer(port, target_filter, script_builder).is_ok() {
-                return;
+        for attempt in 1..=LOCALIZATION_RETRIES {
+            match install_localizer(port, target_filter, script_builder, register_new_document) {
+                Ok(()) => {
+                    crate::diagnostics::append(
+                        "codex_localizer.success",
+                        serde_json::json!({ "name": name, "port": port, "attempt": attempt }),
+                    );
+                    return;
+                }
+                Err(error) => {
+                    crate::diagnostics::append(
+                        "codex_localizer.retry",
+                        serde_json::json!({
+                            "name": name,
+                            "port": port,
+                            "attempt": attempt,
+                            "message": error,
+                        }),
+                    );
+                }
             }
             thread::sleep(LOCALIZATION_RETRY_DELAY);
         }
+        crate::diagnostics::append(
+            "codex_localizer.failed",
+            serde_json::json!({ "name": name, "port": port, "attempts": LOCALIZATION_RETRIES }),
+        );
     });
 }
 
@@ -34,9 +77,10 @@ fn install_localizer(
     port: u16,
     target_filter: fn(&InspectorTarget) -> bool,
     script_builder: fn() -> String,
+    register_new_document: bool,
 ) -> Result<(), String> {
     let websocket_url = find_websocket_url(port, target_filter)?;
-    evaluate_script(&websocket_url, &script_builder())
+    evaluate_script(&websocket_url, &script_builder(), register_new_document)
 }
 
 fn target_is_node(target: &InspectorTarget) -> bool {
@@ -47,12 +91,35 @@ fn target_is_page(target: &InspectorTarget) -> bool {
     target.target_type == "page"
 }
 
-fn find_websocket_url(port: u16, target_filter: fn(&InspectorTarget) -> bool) -> Result<String, String> {
-    let targets: Vec<InspectorTarget> =
-        reqwest::blocking::get(format!("http://127.0.0.1:{port}/json/list"))
-            .map_err(|err| format!("连接 Codex 调试端口失败: {err}"))?
-            .json()
-            .map_err(|err| format!("读取 Codex 调试目标失败: {err}"))?;
+fn find_websocket_url(
+    port: u16,
+    target_filter: fn(&InspectorTarget) -> bool,
+) -> Result<String, String> {
+    let targets: Vec<InspectorTarget> = reqwest::blocking::Client::builder()
+        .no_proxy()
+        .timeout(Duration::from_secs(3))
+        .build()
+        .map_err(|err| format!("创建 Codex 调试客户端失败: {err}"))?
+        .get(format!("http://127.0.0.1:{port}/json/list"))
+        .send()
+        .map_err(|err| format!("连接 Codex 调试端口失败: {err}"))?
+        .json()
+        .map_err(|err| format!("读取 Codex 调试目标失败: {err}"))?;
+
+    crate::diagnostics::append(
+        "codex_localizer.targets",
+        serde_json::json!({
+            "port": port,
+            "targets": targets.iter().map(|target| {
+                serde_json::json!({
+                    "type": target.target_type,
+                    "title": target.title,
+                    "url": target.url,
+                    "hasWebSocket": target.web_socket_debugger_url.as_deref().is_some_and(|url| !url.is_empty()),
+                })
+            }).collect::<Vec<_>>()
+        }),
+    );
 
     targets
         .iter()
@@ -75,7 +142,11 @@ fn find_websocket_url(port: u16, target_filter: fn(&InspectorTarget) -> bool) ->
         .ok_or_else(|| "没有找到 Codex 调试目标。".to_string())
 }
 
-fn evaluate_script(websocket_url: &str, script: &str) -> Result<(), String> {
+fn evaluate_script(
+    websocket_url: &str,
+    script: &str,
+    register_new_document: bool,
+) -> Result<(), String> {
     let script_path = std::env::temp_dir().join("sy-codex-localizer.js");
     fs::write(&script_path, script).map_err(|err| format!("准备 Codex 汉化脚本失败: {err}"))?;
 
@@ -89,6 +160,10 @@ fn evaluate_script(websocket_url: &str, script: &str) -> Result<(), String> {
         ])
         .env("SY_CODEX_WS_URL", websocket_url)
         .env("SY_CODEX_SCRIPT_PATH", script_path)
+        .env(
+            "SY_CODEX_REGISTER_DOCUMENT",
+            if register_new_document { "1" } else { "0" },
+        )
         .output()
         .map_err(|err| format!("启动 Codex 汉化脚本失败: {err}"))?;
 
@@ -106,34 +181,44 @@ $ErrorActionPreference = 'Stop'
 $wsUrl = $env:SY_CODEX_WS_URL
 $scriptPath = $env:SY_CODEX_SCRIPT_PATH
 $script = [IO.File]::ReadAllText($scriptPath, [Text.Encoding]::UTF8)
-$payload = @{
-  id = 1
-  method = 'Runtime.evaluate'
-  params = @{
-    expression = $script
-    awaitPromise = $true
-    returnByValue = $true
-  }
-} | ConvertTo-Json -Depth 8 -Compress
 $client = [Net.WebSockets.ClientWebSocket]::new()
 $token = [Threading.CancellationToken]::None
 $client.ConnectAsync([Uri]$wsUrl, $token).GetAwaiter().GetResult()
-$bytes = [Text.Encoding]::UTF8.GetBytes($payload)
-$client.SendAsync([ArraySegment[byte]]::new($bytes), [Net.WebSockets.WebSocketMessageType]::Text, $true, $token).GetAwaiter().GetResult()
-for ($i = 0; $i -lt 20; $i++) {
-  $buffer = New-Object byte[] 65536
-  $segment = [ArraySegment[byte]]::new($buffer)
-  $text = ''
-  do {
-    $result = $client.ReceiveAsync($segment, $token).GetAwaiter().GetResult()
-    $text += [Text.Encoding]::UTF8.GetString($buffer, 0, $result.Count)
-  } until ($result.EndOfMessage)
-  if ($text -match '"id"\s*:\s*1') {
-    if ($text -match '"exceptionDetails"') { exit 2 }
-    exit 0
+
+function Send-CdpCommand($id, $method, $params) {
+  $payload = @{
+    id = $id
+    method = $method
+    params = $params
+  } | ConvertTo-Json -Depth 8 -Compress
+  $bytes = [Text.Encoding]::UTF8.GetBytes($payload)
+  $client.SendAsync([ArraySegment[byte]]::new($bytes), [Net.WebSockets.WebSocketMessageType]::Text, $true, $token).GetAwaiter().GetResult()
+  for ($i = 0; $i -lt 20; $i++) {
+    $buffer = New-Object byte[] 65536
+    $segment = [ArraySegment[byte]]::new($buffer)
+    $text = ''
+    do {
+      $result = $client.ReceiveAsync($segment, $token).GetAwaiter().GetResult()
+      $text += [Text.Encoding]::UTF8.GetString($buffer, 0, $result.Count)
+    } until ($result.EndOfMessage)
+    if ($text -match ('"id"\s*:\s*' + $id)) {
+      if ($text -match '"exceptionDetails"' -or $text -match '"error"') { exit 2 }
+      return
+    }
   }
+  exit 3
 }
-exit 3
+
+if ($env:SY_CODEX_REGISTER_DOCUMENT -eq '1') {
+  Send-CdpCommand 1 'Page.addScriptToEvaluateOnNewDocument' @{ source = $script }
+}
+Send-CdpCommand 2 'Runtime.evaluate' @{
+  expression = $script
+  awaitPromise = $true
+  returnByValue = $true
+  allowUnsafeEvalBlockedByCSP = $true
+}
+exit 0
 "#;
 
 pub fn native_menu_localizer_script() -> String {
@@ -311,7 +396,87 @@ pub fn renderer_locale_localizer_script() -> String {
     if (Date.now() - startedAt > 5000) window.clearInterval(timer);
   }, 50);
 
-  return JSON.stringify({ status: "ok", locale });
+  const navigationTranslations = new Map([
+    ["Chats", "对话"],
+    ["Projects", "项目"],
+    ["Settings", "设置"],
+    ["Automations", "自动化"],
+    ["Skills", "技能"],
+    ["New Chat", "新建对话"],
+    ["Search chats", "搜索对话"],
+    ["Search Chats", "搜索对话"],
+    ["Archived conversations", "已归档对话"],
+    ["Local Environments", "本地环境"],
+    ["Worktrees", "工作树"],
+    ["Model Context Protocol", "模型上下文协议"],
+    ["Troubleshooting", "故障排查"],
+    ["What's new", "更新内容"],
+  ]);
+
+  const translateTextNode = (node) => {
+    const text = node.nodeValue;
+    if (!text) return 0;
+    const trimmed = text.trim();
+    const translated = navigationTranslations.get(trimmed);
+    if (!translated || trimmed === translated) return 0;
+    node.nodeValue = text.replace(trimmed, translated);
+    return 1;
+  };
+
+  const translateAttributes = (element) => {
+    let changed = 0;
+    for (const attr of ["aria-label", "title", "placeholder", "data-app-action-sidebar-section-heading"]) {
+      const value = element.getAttribute?.(attr);
+      const translated = value ? navigationTranslations.get(value.trim()) : null;
+      if (translated && value !== translated) {
+        element.setAttribute(attr, translated);
+        changed += 1;
+      }
+    }
+    return changed;
+  };
+
+  const translateNavigationText = (root = document.body || document.documentElement) => {
+    if (!root) return 0;
+    let changed = 0;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        const parent = node.parentElement;
+        if (!parent || parent.closest("script,style,textarea,input,[contenteditable=true]")) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return navigationTranslations.has((node.nodeValue || "").trim())
+          ? NodeFilter.FILTER_ACCEPT
+          : NodeFilter.FILTER_REJECT;
+      },
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => { changed += translateTextNode(node); });
+    root.querySelectorAll?.("[aria-label], [title], [placeholder], [data-app-action-sidebar-section-heading]")
+      .forEach((element) => { changed += translateAttributes(element); });
+    window.__syCodexNavigationTranslationCount = (window.__syCodexNavigationTranslationCount || 0) + changed;
+    return changed;
+  };
+
+  const scheduleNavigationTranslation = () => {
+    window.clearTimeout(window.__syCodexNavigationTranslationTimer);
+    window.__syCodexNavigationTranslationTimer = window.setTimeout(() => translateNavigationText(), 80);
+  };
+
+  translateNavigationText();
+  if (!window.__syCodexNavigationObserver) {
+    window.__syCodexNavigationObserver = new MutationObserver(scheduleNavigationTranslation);
+    window.__syCodexNavigationObserver.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ["aria-label", "title", "placeholder", "data-app-action-sidebar-section-heading"],
+    });
+  }
+
+  return JSON.stringify({ status: "ok", locale, navigationFallback: true });
 })()
 "#
     .to_string()
@@ -384,6 +549,16 @@ mod tests {
         assert!(script.contains("enable_i18n"));
         assert!(script.contains("locale_source"));
         assert!(script.contains("72216192"));
+        assert!(script.contains("navigationFallback"));
+        assert!(script.contains("MutationObserver"));
+        assert!(script.contains("data-app-action-sidebar-section-heading"));
         assert!(!script.contains("app.asar"));
+    }
+
+    #[test]
+    fn cdp_evaluator_registers_renderer_script_for_new_documents() {
+        assert!(POWERSHELL_CDP_EVALUATE.contains("Page.addScriptToEvaluateOnNewDocument"));
+        assert!(POWERSHELL_CDP_EVALUATE.contains("Runtime.evaluate"));
+        assert!(POWERSHELL_CDP_EVALUATE.contains("SY_CODEX_REGISTER_DOCUMENT"));
     }
 }

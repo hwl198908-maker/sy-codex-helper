@@ -69,13 +69,34 @@ pub fn download_and_open_codex(
 
 #[tauri::command]
 pub fn open_codex(enhanced_menu: Option<bool>) -> Result<(), String> {
-    if enhanced_menu.unwrap_or(true) && open_codex_with_enhancements().is_ok() {
-        return Ok(());
+    let enhanced = enhanced_menu.unwrap_or(true);
+    crate::diagnostics::append(
+        "open_codex.request",
+        serde_json::json!({ "enhanced": enhanced }),
+    );
+
+    if enhanced {
+        match open_codex_with_enhancements() {
+            Ok(()) => return Ok(()),
+            Err(error) => {
+                crate::diagnostics::append(
+                    "open_codex.enhanced_failed_fallback",
+                    serde_json::json!({ "message": error }),
+                );
+            }
+        }
     }
 
     let executable = find_codex_executable()
         .ok_or_else(|| "没有找到 Codex 可执行文件，请先完成安装。".to_string())?;
     let workspace = default_codex_workspace();
+    crate::diagnostics::append(
+        "open_codex.fallback_spawn",
+        serde_json::json!({
+            "executable": executable.to_string_lossy(),
+            "workspace": workspace.to_string_lossy(),
+        }),
+    );
     Command::new(executable)
         .args(build_codex_app_args(&workspace))
         .spawn()
@@ -91,9 +112,32 @@ fn open_codex_with_enhancements() -> Result<(), String> {
         inspector_port,
     ));
 
-    activate_packaged_codex(&arguments)?;
+    crate::diagnostics::append(
+        "open_codex.enhanced_activate_start",
+        serde_json::json!({
+            "remoteDebuggingPort": remote_debugging_port,
+            "inspectorPort": inspector_port,
+            "arguments": arguments,
+        }),
+    );
+    let process_id = activate_packaged_codex(&arguments)?;
+    crate::diagnostics::append(
+        "open_codex.enhanced_activate_ok",
+        serde_json::json!({
+            "processId": process_id,
+            "remoteDebuggingPort": remote_debugging_port,
+            "inspectorPort": inspector_port,
+        }),
+    );
     crate::native_menu::spawn_native_menu_localizer(inspector_port);
     crate::native_menu::spawn_renderer_locale_localizer(remote_debugging_port);
+    crate::diagnostics::append(
+        "open_codex.localizers_spawned",
+        serde_json::json!({
+            "remoteDebuggingPort": remote_debugging_port,
+            "inspectorPort": inspector_port,
+        }),
+    );
     Ok(())
 }
 

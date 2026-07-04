@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub mod config_writer;
+pub mod diagnostics;
 pub mod installer;
 pub mod native_menu;
 pub mod storage;
@@ -21,12 +22,18 @@ fn save_provider_record(provider: config_writer::CodexProviderConfig) -> Result<
     storage::save_provider(&provider)
 }
 
+#[tauri::command]
+fn get_diagnostic_log_path() -> String {
+    diagnostics::log_path().to_string_lossy().to_string()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            get_diagnostic_log_path,
             write_provider_config,
             save_provider_record,
             installer::download_and_open_codex,
