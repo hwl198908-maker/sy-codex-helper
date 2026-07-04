@@ -402,15 +402,33 @@ pub fn renderer_locale_localizer_script() -> String {
     ["Settings", "设置"],
     ["Automations", "自动化"],
     ["Skills", "技能"],
+    ["Plugins", "插件"],
+    ["Plugin", "插件"],
+    ["New chat", "新建对话"],
     ["New Chat", "新建对话"],
+    ["Search", "搜索"],
     ["Search chats", "搜索对话"],
     ["Search Chats", "搜索对话"],
+    ["Search plugins", "搜索插件"],
     ["Archived conversations", "已归档对话"],
     ["Local Environments", "本地环境"],
     ["Worktrees", "工作树"],
     ["Model Context Protocol", "模型上下文协议"],
     ["Troubleshooting", "故障排查"],
     ["What's new", "更新内容"],
+    ["What should we get done?", "今天要完成什么？"],
+    ["Do anything", "输入你的任务"],
+    ["Install", "安装"],
+    ["By OpenAI", "OpenAI 提供"],
+    ["By your workspace", "工作区"],
+    ["Personal", "个人"],
+    ["Creativity", "创意"],
+    ["Data & Analytics", "数据分析"],
+    ["Developer Tools", "开发工具"],
+    ["Work with Codex across your favorite tools", "让 Codex 连接你常用的工具"],
+    ["No chats", "暂无对话"],
+    ["Account", "账户"],
+    ["清理C盘瘦身", "清理 C 盘瘦身"],
   ]);
 
   const translateTextNode = (node) => {
@@ -465,6 +483,7 @@ pub fn renderer_locale_localizer_script() -> String {
   };
 
   translateNavigationText();
+  console.info("[SY Codex] navigation translations applied", window.__syCodexNavigationTranslationCount || 0);
   if (!window.__syCodexNavigationObserver) {
     window.__syCodexNavigationObserver = new MutationObserver(scheduleNavigationTranslation);
     window.__syCodexNavigationObserver.observe(document.documentElement, {
@@ -552,6 +571,9 @@ mod tests {
         assert!(script.contains("navigationFallback"));
         assert!(script.contains("MutationObserver"));
         assert!(script.contains("data-app-action-sidebar-section-heading"));
+        assert!(script.contains("Plugins"));
+        assert!(script.contains("What should we get done?"));
+        assert!(script.contains("Do anything"));
         assert!(!script.contains("app.asar"));
     }
 

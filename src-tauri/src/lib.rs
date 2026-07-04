@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub mod config_writer;
 pub mod diagnostics;
+pub mod feedback;
 pub mod installer;
 pub mod native_menu;
 pub mod storage;
@@ -34,6 +35,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             get_diagnostic_log_path,
+            feedback::submit_feedback,
             write_provider_config,
             save_provider_record,
             installer::download_and_open_codex,

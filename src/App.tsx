@@ -20,7 +20,9 @@ import { getNextStep, getPreviousStep } from "./lib/wizard";
 import { ToolStep } from "./components/ToolStep";
 import { InstallStep } from "./components/InstallStep";
 import { ProviderStep } from "./components/ProviderStep";
+import { StyleSettingsStep } from "./components/StyleSettingsStep";
 import { CompleteStep } from "./components/CompleteStep";
+import { FeedbackStep } from "./components/FeedbackStep";
 import {
   DEFAULT_PROVIDER_BASE_URL,
   DEFAULT_PROVIDER_MODEL,
@@ -50,13 +52,25 @@ const stepGuides: Record<WizardStep, StepGuide> = {
   provider: {
     label: "03",
     current: "配置代理 API、令牌和 GPT-5.5 模型",
-    next: "保存后打开 Codex 桌面 App 完成配置",
+    next: "保存后进入设置风格页面",
+    action: "下一步：设置风格",
+  },
+  style: {
+    label: "04",
+    current: "设置界面风格和 Codex 中文增强",
+    next: "确认后打开 Codex 桌面 App",
     action: "下一步：打开 Codex",
   },
   complete: {
-    label: "04",
+    label: "05",
     current: "完成配置，打开 Codex 桌面 App",
-    next: "最后一步：点击页面中的打开 Codex",
+    next: "最后可提交意见反馈，帮助后续更新",
+    action: "下一步：意见反馈",
+  },
+  feedback: {
+    label: "06",
+    current: "提交意见反馈",
+    next: "反馈会进入后台，后续用于版本更新排期",
     action: "完成",
   },
 };
@@ -65,16 +79,20 @@ const stepLabels: Record<WizardStep, string> = {
   tool: "选择工具",
   install: "下载 Codex",
   provider: "配置 API",
+  style: "设置风格",
   complete: "打开 Codex",
+  feedback: "意见反馈",
 };
 
-const steps: WizardStep[] = ["tool", "install", "provider", "complete"];
+const steps: WizardStep[] = ["tool", "install", "provider", "style", "complete", "feedback"];
 
 const stepProgress: Record<WizardStep, number> = {
-  tool: 25,
-  install: 50,
-  provider: 75,
-  complete: 100,
+  tool: 16,
+  install: 32,
+  provider: 50,
+  style: 66,
+  complete: 84,
+  feedback: 100,
 };
 
 export default function App() {
@@ -90,7 +108,7 @@ export default function App() {
   return (
     <MantineProvider defaultColorScheme="light">
       <AppShell className="app-bg">
-        <Container size={920} py="md">
+        <Container size={980} py="md">
           <Stack gap="md">
             <Paper className="hero-card" radius="md" p="lg">
               <Group justify="space-between" align="flex-start" gap="md">
@@ -108,10 +126,15 @@ export default function App() {
 
             <nav className="steps" aria-label="安装步骤">
               {steps.map((item, index) => (
-                <span className={item === step ? "step active" : "step"} key={item}>
+                <button
+                  type="button"
+                  className={item === step ? "step active" : "step"}
+                  key={item}
+                  onClick={() => setStep(item)}
+                >
                   <span className="step-number">{index + 1}</span>
                   <span>{stepLabels[item]}</span>
-                </span>
+                </button>
               ))}
             </nav>
 
@@ -122,14 +145,16 @@ export default function App() {
                   <Text fw={800}>{guide.current}</Text>
                   <Text c="dimmed" size="sm" mt={3}>{guide.next}</Text>
                 </Box>
-                <div className="guide-arrow">NEXT</div>
+                <div className="guide-arrow">下一步</div>
               </Group>
             </Paper>
 
             {step === "tool" && <ToolStep />}
             {step === "install" && <InstallStep />}
             {step === "provider" && <ProviderStep form={providerForm} onFormChange={setProviderForm} />}
+            {step === "style" && <StyleSettingsStep />}
             {step === "complete" && <CompleteStep providerForm={providerForm} />}
+            {step === "feedback" && <FeedbackStep />}
 
             <Group justify="space-between" className="footer-actions">
               <Button variant="default" size="md" onClick={() => setStep(getPreviousStep(step))} disabled={step === "tool"}>

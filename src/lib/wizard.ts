@@ -1,6 +1,6 @@
 import type { WizardStep } from "../types";
 
-const order: WizardStep[] = ["tool", "install", "provider", "complete"];
+const order: WizardStep[] = ["tool", "install", "provider", "style", "complete", "feedback"];
 
 export function getNextStep(step: WizardStep): WizardStep {
   const index = order.indexOf(step);

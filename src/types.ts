@@ -1,6 +1,6 @@
 export type ToolId = "codex" | "openclaw";
 
-export type WizardStep = "tool" | "install" | "provider" | "complete";
+export type WizardStep = "tool" | "install" | "provider" | "style" | "complete" | "feedback";
 
 export type InstallStatus = {
   installed: boolean;
