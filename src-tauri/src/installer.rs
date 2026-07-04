@@ -1,5 +1,6 @@
 use sha2::{Digest, Sha256};
 use std::{fs, io::Read, path::Path, process::Command, time::Duration};
+use tauri::Emitter;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct InstallStatus {
@@ -7,6 +8,14 @@ pub struct InstallStatus {
     pub installed_version: Option<String>,
     pub available_version: Option<String>,
     pub message: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadProgress {
+    pub phase: String,
+    pub downloaded_bytes: u64,
+    pub total_bytes: Option<u64>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -34,12 +43,18 @@ pub fn select_codex_windows_package(manifest: &MirrorManifest) -> Option<&Mirror
 }
 
 #[tauri::command]
-pub fn download_and_open_codex(base_url: String) -> Result<InstallStatus, String> {
+pub fn download_and_open_codex(
+    app: tauri::AppHandle,
+    base_url: String,
+) -> Result<InstallStatus, String> {
     let manifest = read_mirror_manifest(base_url)?;
     let package = select_codex_windows_package(&manifest)
         .ok_or_else(|| "镜像清单中没有 Codex Windows 安装包。".to_string())?;
-    let target_path = download_package(package)?;
+    emit_download_progress(&app, "准备下载", 0, None);
+    let target_path = download_package(package, Some(&app))?;
+    emit_download_progress(&app, "正在安装", 0, None);
     open_installer(package, &target_path)?;
+    emit_download_progress(&app, "安装完成", 0, None);
 
     Ok(InstallStatus {
         installed: false,
@@ -112,7 +127,10 @@ fn build_manifest_url(base_url: &str) -> Result<String, String> {
     Ok(format!("{trimmed}/manifest.json"))
 }
 
-fn download_package(package: &MirrorToolPackage) -> Result<std::path::PathBuf, String> {
+fn download_package(
+    package: &MirrorToolPackage,
+    app: Option<&tauri::AppHandle>,
+) -> Result<std::path::PathBuf, String> {
     let local_path = Path::new(&package.package_url);
     if local_path.exists() {
         return Ok(local_path.to_path_buf());
@@ -138,16 +156,58 @@ fn download_package(package: &MirrorToolPackage) -> Result<std::path::PathBuf, S
         return Err(format!("安装包下载地址返回异常状态：{}", response.status()));
     }
 
+    let total_bytes = response.content_length();
     let mut file =
         fs::File::create(&target_path).map_err(|err| format!("创建安装包文件失败：{err}"))?;
-    response
-        .copy_to(&mut file)
-        .map_err(|err| format!("保存安装包失败：{err}"))?;
+    let mut downloaded_bytes = 0_u64;
+    let mut last_emitted_bytes = 0_u64;
+    let mut buffer = [0_u8; 64 * 1024];
+
+    loop {
+        let read = response
+            .read(&mut buffer)
+            .map_err(|err| format!("下载安装包失败：{err}"))?;
+        if read == 0 {
+            break;
+        }
+
+        std::io::Write::write_all(&mut file, &buffer[..read])
+            .map_err(|err| format!("保存安装包失败：{err}"))?;
+        downloaded_bytes += read as u64;
+
+        if downloaded_bytes == total_bytes.unwrap_or(downloaded_bytes)
+            || downloaded_bytes.saturating_sub(last_emitted_bytes) >= 1024 * 1024
+        {
+            if let Some(app) = app {
+                emit_download_progress(app, "正在下载", downloaded_bytes, total_bytes);
+            }
+            last_emitted_bytes = downloaded_bytes;
+        }
+    }
     drop(file);
 
+    if let Some(app) = app {
+        emit_download_progress(app, "正在校验", downloaded_bytes, total_bytes);
+    }
     verify_package_checksum(package, &target_path)?;
 
     Ok(target_path)
+}
+
+fn emit_download_progress(
+    app: &tauri::AppHandle,
+    phase: &str,
+    downloaded_bytes: u64,
+    total_bytes: Option<u64>,
+) {
+    let _ = app.emit(
+        "codex-download-progress",
+        DownloadProgress {
+            phase: phase.to_string(),
+            downloaded_bytes,
+            total_bytes,
+        },
+    );
 }
 
 fn verify_package_checksum(package: &MirrorToolPackage, path: &Path) -> Result<(), String> {

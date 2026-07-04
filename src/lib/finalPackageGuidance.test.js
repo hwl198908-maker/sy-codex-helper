@@ -23,6 +23,13 @@ describe("final package guidance", () => {
     expect(readme).not.toContain('"arch": "x64"');
   });
 
+  it("shows install download progress instead of looking frozen", () => {
+    const installStep = readProjectFile("src/components/InstallStep.tsx");
+
+    expect(installStep).toContain("codex-download-progress");
+    expect(installStep).toContain("<progress");
+  });
+
   it("describes the current completion behavior without live-state claims", () => {
     const completeStep = readProjectFile("src/components/CompleteStep.tsx");
 

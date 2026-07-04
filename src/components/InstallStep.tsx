@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { DEFAULT_MIRROR_BASE_URL } from "../lib/defaults";
 import type { InstallStatus, MirrorManifest, MirrorToolPackage } from "../types";
 import { AdvancedSettings } from "./AdvancedSettings";
@@ -11,8 +12,29 @@ export function InstallStep() {
   const [installMessage, setInstallMessage] = useState("");
   const [isReading, setIsReading] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
 
   const codexPackage = manifest ? findCodexWindowsPackage(manifest) : undefined;
+  const downloadPercent = useMemo(() => {
+    if (!downloadProgress?.totalBytes) {
+      return undefined;
+    }
+    return Math.min(100, Math.round((downloadProgress.downloadedBytes / downloadProgress.totalBytes) * 100));
+  }, [downloadProgress]);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    listen<DownloadProgress>("codex-download-progress", (event) => {
+      setDownloadProgress(event.payload);
+    }).then((cleanup) => {
+      unlisten = cleanup;
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   async function readManifest() {
     setError("");
@@ -35,6 +57,7 @@ export function InstallStep() {
   async function downloadAndInstall() {
     setError("");
     setInstallMessage("");
+    setDownloadProgress({ phase: "准备下载", downloadedBytes: 0 });
     setIsInstalling(true);
 
     try {
@@ -90,6 +113,23 @@ export function InstallStep() {
 
       <div className="status-box" role="status">
         {error && <p>{error}</p>}
+        {!error && isInstalling && downloadProgress && (
+          <div className="download-progress">
+            <div className="download-progress-header">
+              <strong>{downloadProgress.phase}</strong>
+              <span>{downloadPercent === undefined ? "请稍候" : `${downloadPercent}%`}</span>
+            </div>
+            <progress
+              aria-label="codex-download-progress"
+              max={downloadProgress.totalBytes ?? 100}
+              value={downloadProgress.totalBytes ? downloadProgress.downloadedBytes : 35}
+            />
+            <p>
+              已下载 {formatBytes(downloadProgress.downloadedBytes)}
+              {downloadProgress.totalBytes ? ` / ${formatBytes(downloadProgress.totalBytes)}` : ""}
+            </p>
+          </div>
+        )}
         {!error && installMessage && <p>{installMessage}</p>}
         {!error && codexPackage && <p>可用版本：Codex Windows {codexPackage.version}</p>}
         {!error && manifest && !codexPackage && <p>镜像清单中没有 Codex Windows 安装包。</p>}
@@ -99,6 +139,19 @@ export function InstallStep() {
       <AdvancedSettings />
     </section>
   );
+}
+
+type DownloadProgress = {
+  phase: string;
+  downloadedBytes: number;
+  totalBytes?: number | null;
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(0, Math.round(bytes / 1024))} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function findCodexWindowsPackage(manifest: MirrorManifest): MirrorToolPackage | undefined {
