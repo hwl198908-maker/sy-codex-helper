@@ -76,6 +76,9 @@ pub fn read_mirror_manifest(base_url: String) -> Result<MirrorManifest, String> 
     if let Some(manifest) = read_local_manifest(&base_url)? {
         return Ok(manifest);
     }
+    if let Some(manifest) = direct_package_manifest(&base_url)? {
+        return Ok(manifest);
+    }
 
     let manifest_url = build_manifest_url(&base_url)?;
     let client = reqwest::blocking::Client::builder()
@@ -190,18 +193,59 @@ fn local_package(path: &Path) -> Result<MirrorToolPackage, String> {
 }
 
 fn download_file_name(package: &MirrorToolPackage) -> String {
+    if package
+        .package_url
+        .eq_ignore_ascii_case("https://codexapp.agentsmirror.com/latest/win")
+    {
+        return "codex-latest-windows-x64.msix".to_string();
+    }
+
     reqwest::Url::parse(&package.package_url)
         .ok()
         .and_then(|url| {
             url.path_segments()
                 .and_then(|mut segments| segments.next_back().map(str::to_string))
         })
+        .filter(|name| name.contains('.'))
         .filter(|name| !name.trim().is_empty())
         .unwrap_or_else(|| format!("codex-{}-{}.exe", package.version, package.platform))
 }
 
+fn direct_package_manifest(base_url: &str) -> Result<Option<MirrorManifest>, String> {
+    let trimmed = base_url.trim();
+    if !is_direct_package_url(trimmed) {
+        return Ok(None);
+    }
+    let parsed = reqwest::Url::parse(trimmed)
+        .map_err(|_| "安装包地址无效，请填写完整的 http(s) 地址。".to_string())?;
+
+    if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
+        return Err("安装包地址无效，请填写完整的 http(s) 地址。".to_string());
+    }
+
+    Ok(Some(MirrorManifest {
+        tools: vec![MirrorToolPackage {
+            tool_id: "codex".to_string(),
+            version: "latest".to_string(),
+            platform: "windows-x64".to_string(),
+            package_url: trimmed.to_string(),
+            checksum_sha256: "mirror-direct".to_string(),
+            release_notes: Some("Codex App 镜像最新 Windows 包".to_string()),
+        }],
+    }))
+}
+
+fn is_direct_package_url(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.ends_with(".exe")
+        || lower.ends_with(".msix")
+        || lower.ends_with(".msixbundle")
+        || lower == "https://codexapp.agentsmirror.com/latest/win"
+}
+
 fn open_installer(path: &std::path::Path) -> Result<(), String> {
-    Command::new(path)
+    Command::new("cmd")
+        .args(["/C", "start", "", &path.to_string_lossy()])
         .spawn()
         .map_err(|err| format!("打开安装程序失败：{err}"))?;
     Ok(())
@@ -329,6 +373,38 @@ mod tests {
         };
 
         assert_eq!(download_file_name(&package), "codex-2.3.4-windows-x64.exe");
+    }
+
+    #[test]
+    fn treats_agentsmirror_latest_win_as_direct_package() {
+        let manifest = direct_package_manifest("https://codexapp.agentsmirror.com/latest/win")
+            .expect("direct package")
+            .expect("manifest");
+        let package = select_codex_windows_package(&manifest).expect("codex package");
+
+        assert_eq!(package.tool_id, "codex");
+        assert_eq!(package.version, "latest");
+        assert_eq!(
+            package.package_url,
+            "https://codexapp.agentsmirror.com/latest/win"
+        );
+    }
+
+    #[test]
+    fn gives_direct_latest_win_a_msix_file_name() {
+        let package = MirrorToolPackage {
+            tool_id: "codex".to_string(),
+            version: "latest".to_string(),
+            platform: "windows-x64".to_string(),
+            package_url: "https://codexapp.agentsmirror.com/latest/win".to_string(),
+            checksum_sha256: "mirror-direct".to_string(),
+            release_notes: None,
+        };
+
+        assert_eq!(
+            download_file_name(&package),
+            "codex-latest-windows-x64.msix"
+        );
     }
 
     #[test]
