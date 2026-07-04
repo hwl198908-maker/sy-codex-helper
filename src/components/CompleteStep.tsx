@@ -107,9 +107,9 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
         <Paper withBorder radius="md" p="md">
           <Group justify="space-between" align="center" gap="md">
             <div>
-              <Text fw={700}>Codex 中文菜单增强</Text>
+              <Text fw={700}>Codex 中文页面/菜单增强</Text>
               <Text size="sm" c="dimmed" mt={4}>
-                默认开启，不修改官方安装包；打开 Codex 时运行时汉化原生菜单。
+                默认开启，不修改官方安装包；打开 Codex 时运行时尝试汉化页面和原生菜单。
               </Text>
             </div>
             <Switch

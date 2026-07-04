@@ -93,6 +93,7 @@ fn open_codex_with_enhancements() -> Result<(), String> {
 
     activate_packaged_codex(&arguments)?;
     crate::native_menu::spawn_native_menu_localizer(inspector_port);
+    crate::native_menu::spawn_renderer_locale_localizer(remote_debugging_port);
     Ok(())
 }
 

@@ -1,7 +1,7 @@
 use std::{fs, process::Command, thread, time::Duration};
 
-const MENU_LOCALIZATION_RETRIES: usize = 20;
-const MENU_LOCALIZATION_RETRY_DELAY: Duration = Duration::from_millis(500);
+const LOCALIZATION_RETRIES: usize = 20;
+const LOCALIZATION_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 #[derive(serde::Deserialize)]
 struct InspectorTarget {
@@ -12,32 +12,52 @@ struct InspectorTarget {
 }
 
 pub fn spawn_native_menu_localizer(inspector_port: u16) {
+    spawn_localizer(inspector_port, target_is_node, native_menu_localizer_script);
+}
+
+pub fn spawn_renderer_locale_localizer(debug_port: u16) {
+    spawn_localizer(debug_port, target_is_page, renderer_locale_localizer_script);
+}
+
+fn spawn_localizer(port: u16, target_filter: fn(&InspectorTarget) -> bool, script_builder: fn() -> String) {
     thread::spawn(move || {
-        for _ in 0..MENU_LOCALIZATION_RETRIES {
-            if install_native_menu_localizer(inspector_port).is_ok() {
+        for _ in 0..LOCALIZATION_RETRIES {
+            if install_localizer(port, target_filter, script_builder).is_ok() {
                 return;
             }
-            thread::sleep(MENU_LOCALIZATION_RETRY_DELAY);
+            thread::sleep(LOCALIZATION_RETRY_DELAY);
         }
     });
 }
 
-fn install_native_menu_localizer(inspector_port: u16) -> Result<(), String> {
-    let websocket_url = find_main_process_websocket_url(inspector_port)?;
-    evaluate_script(&websocket_url, &native_menu_localizer_script())
+fn install_localizer(
+    port: u16,
+    target_filter: fn(&InspectorTarget) -> bool,
+    script_builder: fn() -> String,
+) -> Result<(), String> {
+    let websocket_url = find_websocket_url(port, target_filter)?;
+    evaluate_script(&websocket_url, &script_builder())
 }
 
-fn find_main_process_websocket_url(inspector_port: u16) -> Result<String, String> {
+fn target_is_node(target: &InspectorTarget) -> bool {
+    target.target_type == "node"
+}
+
+fn target_is_page(target: &InspectorTarget) -> bool {
+    target.target_type == "page"
+}
+
+fn find_websocket_url(port: u16, target_filter: fn(&InspectorTarget) -> bool) -> Result<String, String> {
     let targets: Vec<InspectorTarget> =
-        reqwest::blocking::get(format!("http://127.0.0.1:{inspector_port}/json/list"))
-            .map_err(|err| format!("连接 Codex 菜单调试端口失败: {err}"))?
+        reqwest::blocking::get(format!("http://127.0.0.1:{port}/json/list"))
+            .map_err(|err| format!("连接 Codex 调试端口失败: {err}"))?
             .json()
-            .map_err(|err| format!("读取 Codex 菜单调试目标失败: {err}"))?;
+            .map_err(|err| format!("读取 Codex 调试目标失败: {err}"))?;
 
     targets
         .iter()
         .find(|target| {
-            target.target_type == "node"
+            target_filter(target)
                 && target
                     .web_socket_debugger_url
                     .as_deref()
@@ -52,12 +72,12 @@ fn find_main_process_websocket_url(inspector_port: u16) -> Result<String, String
             })
         })
         .and_then(|target| target.web_socket_debugger_url.clone())
-        .ok_or_else(|| "没有找到 Codex Electron 主进程调试目标。".to_string())
+        .ok_or_else(|| "没有找到 Codex 调试目标。".to_string())
 }
 
 fn evaluate_script(websocket_url: &str, script: &str) -> Result<(), String> {
-    let script_path = std::env::temp_dir().join("sy-codex-native-menu-localizer.js");
-    fs::write(&script_path, script).map_err(|err| format!("准备 Codex 菜单汉化脚本失败: {err}"))?;
+    let script_path = std::env::temp_dir().join("sy-codex-localizer.js");
+    fs::write(&script_path, script).map_err(|err| format!("准备 Codex 汉化脚本失败: {err}"))?;
 
     let output = Command::new("powershell")
         .args([
@@ -68,9 +88,9 @@ fn evaluate_script(websocket_url: &str, script: &str) -> Result<(), String> {
             POWERSHELL_CDP_EVALUATE,
         ])
         .env("SY_CODEX_WS_URL", websocket_url)
-        .env("SY_CODEX_MENU_SCRIPT_PATH", script_path)
+        .env("SY_CODEX_SCRIPT_PATH", script_path)
         .output()
-        .map_err(|err| format!("启动 Codex 菜单汉化脚本失败: {err}"))?;
+        .map_err(|err| format!("启动 Codex 汉化脚本失败: {err}"))?;
 
     if output.status.success() {
         return Ok(());
@@ -84,7 +104,7 @@ fn evaluate_script(websocket_url: &str, script: &str) -> Result<(), String> {
 const POWERSHELL_CDP_EVALUATE: &str = r#"
 $ErrorActionPreference = 'Stop'
 $wsUrl = $env:SY_CODEX_WS_URL
-$scriptPath = $env:SY_CODEX_MENU_SCRIPT_PATH
+$scriptPath = $env:SY_CODEX_SCRIPT_PATH
 $script = [IO.File]::ReadAllText($scriptPath, [Text.Encoding]::UTF8)
 $payload = @{
   id = 1
@@ -161,6 +181,142 @@ pub fn native_menu_localizer_script() -> String {
     )
 }
 
+pub fn renderer_locale_localizer_script() -> String {
+    r#"
+(() => {
+  const locale = "zh-CN";
+  if (window.__syCodexForceChineseLocaleInstalled === "1") {
+    return JSON.stringify({ status: "already-installed", locale });
+  }
+  window.__syCodexForceChineseLocaleInstalled = "1";
+  const languages = [locale, "zh", "en-US", "en"];
+
+  const defineNavigatorGetter = (name, value) => {
+    try {
+      Object.defineProperty(Navigator.prototype, name, {
+        configurable: true,
+        get: () => value,
+      });
+    } catch {
+      try {
+        Object.defineProperty(navigator, name, {
+          configurable: true,
+          get: () => value,
+        });
+      } catch {}
+    }
+  };
+
+  defineNavigatorGetter("language", locale);
+  defineNavigatorGetter("languages", languages);
+
+  const patchI18nConfig = (dynamicConfig) => {
+    if (!dynamicConfig || typeof dynamicConfig !== "object") return dynamicConfig;
+    const value = dynamicConfig.value && typeof dynamicConfig.value === "object" ? dynamicConfig.value : {};
+    try {
+      dynamicConfig.value = {
+        ...value,
+        enable_i18n: true,
+        locale_source: "SYSTEM",
+      };
+    } catch {}
+    if (typeof dynamicConfig.get === "function" && !dynamicConfig.__syCodexForceChineseLocaleGetPatched) {
+      const originalGet = dynamicConfig.get.bind(dynamicConfig);
+      dynamicConfig.get = (key, fallback) => {
+        if (key === "enable_i18n") return true;
+        if (key === "locale_source") return "SYSTEM";
+        return originalGet(key, fallback);
+      };
+      dynamicConfig.__syCodexForceChineseLocaleGetPatched = true;
+    }
+    return dynamicConfig;
+  };
+
+  const statsigClients = () => {
+    const root = window.__STATSIG__ || globalThis.__STATSIG__;
+    if (!root || typeof root !== "object") return [];
+    const clients = [root.firstInstance, typeof root.instance === "function" ? root.instance() : null];
+    if (root.instances && typeof root.instances === "object") clients.push(...Object.values(root.instances));
+    return clients.filter((client, index, array) => client && typeof client === "object" && array.indexOf(client) === index);
+  };
+
+  const patchStatsigClient = (client) => {
+    if (!client || typeof client !== "object" || typeof client.getDynamicConfig !== "function") return;
+    if (!client.__syCodexForceChineseLocalePatched) {
+      const originalGetDynamicConfig = client.getDynamicConfig.bind(client);
+      client.getDynamicConfig = (name, options) => {
+        const result = originalGetDynamicConfig(name, options);
+        return name === "72216192" ? patchI18nConfig(result) : result;
+      };
+      client.__syCodexForceChineseLocalePatched = true;
+    }
+    try {
+      patchI18nConfig(client.getDynamicConfig("72216192", { disableExposureLog: true }));
+    } catch {}
+  };
+
+  const patchStatsigRoot = (root) => {
+    if (!root || typeof root !== "object" || root.__syCodexForceChineseLocaleRootPatched) return;
+    root.__syCodexForceChineseLocaleRootPatched = true;
+    ["firstInstance", "instance"].forEach((key) => {
+      let current;
+      try {
+        current = root[key];
+      } catch {
+        return;
+      }
+      patchStatsigClient(typeof current === "function" && key === "instance" ? current.call(root) : current);
+      try {
+        Object.defineProperty(root, key, {
+          configurable: true,
+          get: () => current,
+          set: (next) => {
+            current = next;
+            patchStatsigClient(typeof next === "function" && key === "instance" ? next.call(root) : next);
+          },
+        });
+      } catch {}
+    });
+  };
+
+  const installStatsigRootSetter = () => {
+    const descriptor = Object.getOwnPropertyDescriptor(window, "__STATSIG__");
+    if (descriptor && descriptor.configurable === false) return;
+    let currentRoot = window.__STATSIG__;
+    patchStatsigRoot(currentRoot);
+    try {
+      Object.defineProperty(window, "__STATSIG__", {
+        configurable: true,
+        get: () => currentRoot,
+        set: (next) => {
+          currentRoot = next;
+          patchStatsigRoot(next);
+          statsigClients().forEach(patchStatsigClient);
+        },
+      });
+    } catch {}
+  };
+
+  const patchStatsigI18nConfig = () => {
+    installStatsigRootSetter();
+    const root = window.__STATSIG__ || globalThis.__STATSIG__;
+    patchStatsigRoot(root);
+    statsigClients().forEach(patchStatsigClient);
+  };
+
+  patchStatsigI18nConfig();
+  const startedAt = Date.now();
+  const timer = window.setInterval(() => {
+    patchStatsigI18nConfig();
+    if (Date.now() - startedAt > 5000) window.clearInterval(timer);
+  }, 50);
+
+  return JSON.stringify({ status: "ok", locale });
+})()
+"#
+    .to_string()
+}
+
 fn menu_label_translations() -> Vec<(&'static str, &'static str)> {
     vec![
         ("File", "文件"),
@@ -217,6 +373,17 @@ mod tests {
         assert!(script.contains("Menu.setApplicationMenu"));
         assert!(script.contains("Toggle Sidebar"));
         assert!(script.contains("切换边栏"));
+        assert!(!script.contains("app.asar"));
+    }
+
+    #[test]
+    fn renderer_locale_localizer_forces_codex_i18n_config() {
+        let script = renderer_locale_localizer_script();
+
+        assert!(script.contains("zh-CN"));
+        assert!(script.contains("enable_i18n"));
+        assert!(script.contains("locale_source"));
+        assert!(script.contains("72216192"));
         assert!(!script.contains("app.asar"));
     }
 }

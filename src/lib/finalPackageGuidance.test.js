@@ -62,7 +62,7 @@ describe("final package guidance", () => {
     expect(completeStep).toContain("保存 API 设置后");
     expect(completeStep).toContain("自动备份");
     expect(completeStep).toContain("检查更新");
-    expect(completeStep).toContain("Codex 中文菜单增强");
+    expect(completeStep).toContain("Codex 中文页面/菜单增强");
     expect(completeStep).toContain("enhancedMenu");
     expect(completeStep).not.toContain("%APPDATA%\\codex-manager");
   });
