@@ -419,6 +419,41 @@ pub fn renderer_locale_localizer_script() -> String {
     ["What should we get done?", "今天要完成什么？"],
     ["Do anything", "输入你的任务"],
     ["Install", "安装"],
+    ["Back to app", "返回应用"],
+    ["General", "通用"],
+    ["Appearance", "外观"],
+    ["Configuration", "配置"],
+    ["Personalization", "个性化"],
+    ["Pets", "宠物"],
+    ["Keyboard shortcuts", "键盘快捷键"],
+    ["Integrations", "集成"],
+    ["MCP servers", "MCP 服务器"],
+    ["Browser", "浏览器"],
+    ["Computer use", "电脑使用"],
+    ["Coding", "编码"],
+    ["Hooks", "钩子"],
+    ["Git", "Git"],
+    ["Environments", "环境"],
+    ["Archived", "归档"],
+    ["Archived chats", "已归档对话"],
+    ["Chat Settings", "聊天设置"],
+    ["Work mode", "工作模式"],
+    ["Choose how much technical detail Codex shows", "选择 Codex 显示多少技术细节"],
+    ["For coding", "用于编程"],
+    ["More technical responses and control", "更技术化的回复和控制"],
+    ["For everyday work", "用于日常工作"],
+    ["Same power, less technical detail", "同样能力，更少技术细节"],
+    ["Permissions", "权限"],
+    ["Default permissions", "默认权限"],
+    ["By default, Codex can read and edit files in its workspace. It can ask for additional access when needed", "默认情况下，Codex 可以读取和编辑工作区文件，需要时会请求额外权限"],
+    ["Full access", "完全访问"],
+    ["When Codex runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.", "开启完全访问后，Codex 可以编辑电脑上的任意文件并运行联网命令，且不再需要你的确认。这会明显增加数据丢失、泄露或异常行为的风险。"],
+    ["Learn more", "了解更多"],
+    ["Default file open destination", "默认文件打开位置"],
+    ["Where files and folders open by default", "文件和文件夹默认打开的位置"],
+    ["No targets found", "未找到目标"],
+    ["Integrated terminal shell", "集成终端 Shell"],
+    ["Choose which shell opens in the integrated terminal.", "选择集成终端默认打开的 Shell。"],
     ["By OpenAI", "OpenAI 提供"],
     ["By your workspace", "工作区"],
     ["Personal", "个人"],
@@ -574,6 +609,9 @@ mod tests {
         assert!(script.contains("Plugins"));
         assert!(script.contains("What should we get done?"));
         assert!(script.contains("Do anything"));
+        assert!(script.contains("Back to app"));
+        assert!(script.contains("Work mode"));
+        assert!(script.contains("Default permissions"));
         assert!(!script.contains("app.asar"));
     }
 
