@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { Alert, Button, Group, Paper, Progress, Stack, Text, TextInput, Title } from "@mantine/core";
 import { DEFAULT_MIRROR_BASE_URL } from "../lib/defaults";
 import type { InstallStatus, MirrorManifest, MirrorToolPackage } from "../types";
-import { AdvancedSettings } from "./AdvancedSettings";
 
 export function InstallStep() {
   const [mirrorBaseUrl, setMirrorBaseUrl] = useState(DEFAULT_MIRROR_BASE_URL);
@@ -86,58 +86,57 @@ export function InstallStep() {
   }
 
   return (
-    <section className="panel" aria-labelledby="install-title">
-      <div className="section-heading">
-        <p className="eyebrow">第 2 步</p>
-        <h2 id="install-title">安装 Codex</h2>
-        <p>默认使用镜像线路下载 Codex Windows 安装包，也可以手动更换镜像地址。</p>
-      </div>
+    <Paper className="panel" radius="md" p="xl">
+      <Stack gap="md">
+        <div>
+          <Text className="eyebrow">第 2 步</Text>
+          <Title order={2}>安装 Codex</Title>
+          <Text c="dimmed" mt={6}>
+            使用默认线路下载安装包。下载时会显示进度，完成后会打开安装程序。
+          </Text>
+        </div>
 
-      <label className="field">
-        <span>镜像 Base URL</span>
-        <input
+        <TextInput
+          label="默认下载线路"
+          description="一般保持默认即可。"
           value={mirrorBaseUrl}
           onChange={(event) => setMirrorBaseUrl(event.currentTarget.value)}
           placeholder={DEFAULT_MIRROR_BASE_URL}
         />
-      </label>
 
-      <div className="button-row">
-        <button type="button" onClick={readManifest} disabled={isReading}>
-          {isReading ? "正在读取..." : "读取镜像清单"}
-        </button>
-        <button type="button" className="primary" onClick={downloadAndInstall} disabled={isInstalling}>
-          {isInstalling ? "正在下载..." : "下载并安装 Codex"}
-        </button>
-      </div>
+        <Group>
+          <Button variant="default" onClick={readManifest} loading={isReading}>
+            检查安装包
+          </Button>
+          <Button onClick={downloadAndInstall} loading={isInstalling}>
+            安装 Codex
+          </Button>
+        </Group>
 
-      <div className="status-box" role="status">
-        {error && <p>{error}</p>}
-        {!error && isInstalling && downloadProgress && (
-          <div className="download-progress">
-            <div className="download-progress-header">
-              <strong>{downloadProgress.phase}</strong>
-              <span>{downloadPercent === undefined ? "请稍候" : `${downloadPercent}%`}</span>
-            </div>
-            <progress
-              aria-label="codex-download-progress"
-              max={downloadProgress.totalBytes ?? 100}
-              value={downloadProgress.totalBytes ? downloadProgress.downloadedBytes : 35}
-            />
-            <p>
-              已下载 {formatBytes(downloadProgress.downloadedBytes)}
-              {downloadProgress.totalBytes ? ` / ${formatBytes(downloadProgress.totalBytes)}` : ""}
-            </p>
-          </div>
-        )}
-        {!error && installMessage && <p>{installMessage}</p>}
-        {!error && codexPackage && <p>可用版本：Codex Windows {codexPackage.version}</p>}
-        {!error && manifest && !codexPackage && <p>镜像清单中没有 Codex Windows 安装包。</p>}
-        {!error && !manifest && !installMessage && <p>本地状态：尚未执行安装。可以直接下载并安装，或先读取镜像清单。</p>}
-      </div>
-
-      <AdvancedSettings />
-    </section>
+        <Alert color={error ? "red" : "blue"} variant="light">
+          {error && <Text>{error}</Text>}
+          {!error && isInstalling && downloadProgress && (
+            <Stack gap={6}>
+              <Group justify="space-between">
+                <Text fw={700}>{downloadProgress.phase}</Text>
+                <Text>{downloadPercent === undefined ? "请稍等" : `${downloadPercent}%`}</Text>
+              </Group>
+              <Progress value={downloadPercent ?? 35} animated={downloadPercent === undefined} />
+              <Text size="sm" c="dimmed">
+                已下载 {formatBytes(downloadProgress.downloadedBytes)}
+                {downloadProgress.totalBytes ? ` / ${formatBytes(downloadProgress.totalBytes)}` : ""}
+              </Text>
+            </Stack>
+          )}
+          {!error && installMessage && <Text>{installMessage}</Text>}
+          {!error && codexPackage && <Text>可用版本：Codex Windows {codexPackage.version}</Text>}
+          {!error && manifest && !codexPackage && <Text>清单中没有找到 Codex Windows 安装包。</Text>}
+          {!error && !manifest && !installMessage && !isInstalling && (
+            <Text>本地状态：尚未执行安装。可以直接点击“安装 Codex”。</Text>
+          )}
+        </Alert>
+      </Stack>
+    </Paper>
   );
 }
 

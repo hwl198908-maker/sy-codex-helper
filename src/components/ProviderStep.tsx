@@ -1,7 +1,22 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import type { ProviderConfig, ProviderProtocol } from "../types";
+import {
+  Alert,
+  Anchor,
+  Button,
+  Group,
+  Paper,
+  PasswordInput,
+  Radio,
+  Select,
+  Stack,
+  Text,
+  TextInput,
+  Title
+} from "@mantine/core";
+import type { ProviderConfig, ProviderFormState, ProviderProtocol } from "../types";
 import { buildModelsUrl, parseModelList, validateProviderInput } from "../lib/provider";
+import { DEFAULT_PROVIDER_MODEL, SY_API_SITE_URL } from "../lib/defaults";
 
 const userAgent = "CodexManager/1.0";
 
@@ -14,18 +29,18 @@ type CommandProvider = {
   user_agent: string;
 };
 
-function buildProviderConfig(
-  baseUrl: string,
-  apiKey: string,
-  protocol: ProviderProtocol,
-  defaultModel?: string
-): ProviderConfig {
+type ProviderStepProps = {
+  form: ProviderFormState;
+  onFormChange: (form: ProviderFormState) => void;
+};
+
+function buildProviderConfig(form: ProviderFormState): ProviderConfig {
   return {
-    name: "Custom Provider",
-    baseUrl,
-    apiKey,
-    protocol,
-    defaultModel,
+    name: "SY API",
+    baseUrl: form.baseUrl,
+    apiKey: form.apiKey,
+    protocol: form.protocol,
+    defaultModel: form.selectedModel || DEFAULT_PROVIDER_MODEL,
     userAgent
   };
 }
@@ -82,53 +97,44 @@ async function fetchModels(baseUrl: string, apiKey: string): Promise<string[]> {
   }
 }
 
-export function ProviderStep() {
-  const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
-  const [apiKey, setApiKey] = useState("");
-  const [protocol, setProtocol] = useState<ProviderProtocol>("responses");
+export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
   const [models, setModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState("");
   const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [modelStatus, setModelStatus] = useState("模型状态：尚未获取模型列表。");
-  const [status, setStatus] = useState("本地状态：配置尚未保存。");
+  const [modelStatus, setModelStatus] = useState("还没有获取模型列表。可以先保存配置，稍后再回来获取。");
+  const [status, setStatus] = useState("API 配置尚未保存。");
 
-  function currentConfig(): ProviderConfig {
-    return buildProviderConfig(baseUrl, apiKey, protocol, selectedModel || undefined);
+  function updateForm(patch: Partial<ProviderFormState>) {
+    onFormChange({ ...form, ...patch });
   }
 
   async function loadModels() {
-    const config = currentConfig();
+    const config = buildProviderConfig(form);
     const validation = validateProviderInput(config);
     if (!validation.ok) {
-      setModelStatus(`模型状态：${validation.message}`);
+      setModelStatus(validation.message);
       return;
     }
 
     setIsLoadingModels(true);
-    setModelStatus("模型状态：正在获取模型列表...");
+    setModelStatus("正在连接上游并读取模型列表...");
     try {
       const nextModels = await fetchModels(config.baseUrl, config.apiKey);
       setModels(nextModels);
-      setSelectedModel(nextModels[0] ?? "");
-      setModelStatus(
-        nextModels.length > 0
-          ? `模型状态：已获取 ${nextModels.length} 个模型。`
-          : "模型状态：接口返回了空模型列表，仍可保存配置。"
-      );
+      updateForm({ selectedModel: nextModels[0] ?? DEFAULT_PROVIDER_MODEL });
+      setModelStatus(nextModels.length > 0 ? `已获取 ${nextModels.length} 个模型。` : "接口返回空模型列表，仍可保存配置。");
     } catch {
       setModels([]);
-      setSelectedModel("");
-      setModelStatus("模型状态：模型列表获取失败，仍可保存配置；请确认 Base URL 和 API Key 后稍后重试。");
+      setModelStatus("模型列表获取失败。请确认 Base URL 和 API Key，或直接保存后在 Codex 中测试。");
     } finally {
       setIsLoadingModels(false);
     }
   }
 
   async function saveProviderConfig() {
-    const config = currentConfig();
+    const config = buildProviderConfig(form);
     const validation = validateProviderInput(config);
     if (!validation.ok) {
-      setStatus(`本地状态：${validation.message}`);
+      setStatus(validation.message);
       return;
     }
 
@@ -139,97 +145,80 @@ export function ProviderStep() {
       await invoke("write_provider_config", {
         provider: toCommandProvider(config)
       });
-      setStatus(
-        modelStatus.includes("获取失败")
-          ? "本地状态：配置已安全保存。注意：模型列表获取失败，可稍后重试。"
-          : "本地状态：配置已安全保存。"
-      );
+      setStatus("配置已保存到本机 Codex。返回上一步再回来也不会清空。");
     } catch (error) {
-      setStatus(`本地状态：保存失败：${error instanceof Error ? error.message : String(error)}`);
+      setStatus(`保存失败：${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   return (
-    <section className="panel" aria-labelledby="provider-title">
-      <div className="section-heading">
-        <p className="eyebrow">第 3 步</p>
-        <h2 id="provider-title">配置 API</h2>
-        <p>填写服务地址和密钥，获取可用模型后保存到本机 Codex 配置。</p>
-      </div>
+    <Paper className="panel" radius="md" p="xl">
+      <Stack gap="md">
+        <div>
+          <Text className="eyebrow">第 3 步</Text>
+          <Title order={2}>配置 API</Title>
+          <Text c="dimmed" mt={6}>
+            默认使用 SY API 中转。充值后创建令牌，把 Key 填到这里，然后保存即可。
+          </Text>
+        </div>
 
-      <div className="form-grid">
-        <label className="field">
-          <span>Base URL（接口地址）</span>
-          <input
-            value={baseUrl}
-            onChange={(event) => setBaseUrl(event.currentTarget.value)}
-            placeholder="例如：https://api.openai.com/v1"
-          />
-        </label>
+        <Alert color="blue" variant="light">
+          GPT-5.5 中转 API 入口：
+          <Anchor href={SY_API_SITE_URL} target="_blank" rel="noreferrer" ml={4}>
+            www.syapi.vip
+          </Anchor>
+          。客服联系方式：weixxxnb
+        </Alert>
 
-        <label className="field">
-          <span>API Key（密钥）</span>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.currentTarget.value)}
-            placeholder="粘贴你的 API Key"
-          />
-        </label>
-      </div>
+        <TextInput
+          label="Base URL"
+          description="默认地址已经填好，一般不需要修改。"
+          value={form.baseUrl}
+          onChange={(event) => updateForm({ baseUrl: event.currentTarget.value })}
+          placeholder="https://www.syapi.vip/v1"
+        />
 
-      <fieldset className="choice-group">
-        <legend>协议类型</legend>
-        <label>
-          <input
-            type="radio"
-            name="protocol"
-            checked={protocol === "responses"}
-            onChange={() => setProtocol("responses")}
-          />
-          Responses API（默认）
-        </label>
-        <label>
-          <input
-            type="radio"
-            name="protocol"
-            checked={protocol === "chat_completions"}
-            onChange={() => setProtocol("chat_completions")}
-          />
-          Chat Completions
-        </label>
-      </fieldset>
+        <PasswordInput
+          label="API Key"
+          description="在 SY API 充值后创建令牌，再复制到这里。"
+          value={form.apiKey}
+          onChange={(event) => updateForm({ apiKey: event.currentTarget.value })}
+          placeholder="粘贴你的 API Key"
+        />
 
-      <label className="field">
-        <span>默认模型</span>
-        {models.length > 0 ? (
-          <select value={selectedModel} onChange={(event) => setSelectedModel(event.currentTarget.value)}>
-            {models.map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <select value="" disabled>
-            <option value="">获取模型列表后可选择默认模型</option>
-          </select>
-        )}
-      </label>
+        <Radio.Group
+          label="协议类型"
+          value={form.protocol}
+          onChange={(value) => updateForm({ protocol: value as ProviderProtocol })}
+        >
+          <Group mt="xs">
+            <Radio value="responses" label="Responses API（推荐）" />
+            <Radio value="chat_completions" label="Chat Completions" />
+          </Group>
+        </Radio.Group>
 
-      <div className="status-box" role="status">
-        {modelStatus}
-      </div>
+        <Select
+          label="默认模型"
+          description="如果没有获取模型列表，会默认保存 gpt-5.5。"
+          value={form.selectedModel || DEFAULT_PROVIDER_MODEL}
+          onChange={(value) => updateForm({ selectedModel: value || DEFAULT_PROVIDER_MODEL })}
+          data={models.length > 0 ? models : [DEFAULT_PROVIDER_MODEL]}
+          searchable
+        />
 
-      <div className="button-row">
-        <button type="button" onClick={loadModels} disabled={isLoadingModels}>
-          {isLoadingModels ? "正在获取模型..." : "获取模型列表"}
-        </button>
-        <button className="primary inline-action" type="button" onClick={saveProviderConfig}>
-          保存配置
-        </button>
-      </div>
-      <p className="local-status">{status}</p>
-    </section>
+        <Alert color="gray" variant="light">{modelStatus}</Alert>
+
+        <Group>
+          <Button variant="default" onClick={loadModels} loading={isLoadingModels}>
+            获取模型列表
+          </Button>
+          <Button onClick={saveProviderConfig}>
+            保存 API 配置
+          </Button>
+        </Group>
+
+        <Text c="dimmed">{status}</Text>
+      </Stack>
+    </Paper>
   );
 }

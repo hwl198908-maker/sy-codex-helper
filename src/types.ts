@@ -32,3 +32,10 @@ export type ProviderConfig = {
   userAgent: string;
   defaultModel?: string;
 };
+
+export type ProviderFormState = {
+  baseUrl: string;
+  apiKey: string;
+  protocol: ProviderProtocol;
+  selectedModel: string;
+};

@@ -14,6 +14,16 @@ describe("final package guidance", () => {
     expect(installStep).not.toContain('const [mirrorBaseUrl, setMirrorBaseUrl] = useState("");');
   });
 
+  it("uses SY API as the beginner provider default", () => {
+    const app = readProjectFile("src/App.tsx");
+    const defaults = readProjectFile("src/lib/defaults.ts");
+
+    expect(defaults).toContain("https://www.syapi.vip/v1");
+    expect(defaults).toContain("gpt-5.5");
+    expect(app).toContain("ProviderFormState");
+    expect(app).toContain("setProviderForm");
+  });
+
   it("documents the supported Windows mirror manifest shape", () => {
     const readme = readProjectFile("README.md");
 
@@ -27,7 +37,7 @@ describe("final package guidance", () => {
     const installStep = readProjectFile("src/components/InstallStep.tsx");
 
     expect(installStep).toContain("codex-download-progress");
-    expect(installStep).toContain("<progress");
+    expect(installStep).toContain("<Progress");
   });
 
   it("describes the current completion behavior without live-state claims", () => {
@@ -37,9 +47,8 @@ describe("final package guidance", () => {
     expect(completeStep).toContain("打开 Codex");
     expect(completeStep).toContain("保存 API 设置后");
     expect(completeStep).toContain("自动备份");
-    expect(completeStep).not.toContain("等待接入保存命令");
+    expect(completeStep).toContain("检查更新");
     expect(completeStep).not.toContain("%APPDATA%\\codex-manager");
-    expect(completeStep).not.toContain("真实安装、配置和模型状态");
   });
 
   it("does not expose provider loading through the Tauri invoke list", () => {

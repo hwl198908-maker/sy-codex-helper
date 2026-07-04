@@ -2,6 +2,7 @@
 pub mod config_writer;
 pub mod installer;
 pub mod storage;
+pub mod updater;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -30,7 +31,8 @@ pub fn run() {
             installer::download_and_open_codex,
             installer::get_install_status,
             installer::open_codex,
-            installer::read_mirror_manifest
+            installer::read_mirror_manifest,
+            updater::check_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
