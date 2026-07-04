@@ -110,8 +110,7 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
         </Paper>
 
         <Alert color="yellow" variant="light">
-          下载后提示“不安全程序”通常是因为安装包没有代码签名或 SmartScreen 信誉不足。正式解决方式是购买代码签名证书、
-          使用 HTTPS 官网固定下载，并持续积累微软信誉；单靠 UI 或代码不能彻底消除该提示。
+          下载后提示“不安全程序”通常是因为安装包没有认证，允许安装即可。
         </Alert>
 
         <Group>
