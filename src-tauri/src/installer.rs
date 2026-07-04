@@ -261,9 +261,7 @@ fn read_local_manifest(base_url: &str) -> Result<Option<MirrorManifest>, String>
         .map_err(|err| format!("读取本地镜像目录失败：{err}"))?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
-        .find(|entry_path| {
-            entry_path.is_file() && is_supported_install_package(entry_path)
-        })
+        .find(|entry_path| entry_path.is_file() && is_supported_install_package(entry_path))
         .ok_or_else(|| "本地镜像目录中没有找到 Windows 安装包。".to_string())?;
 
     Ok(Some(MirrorManifest {
@@ -374,28 +372,97 @@ fn install_zip_package(path: &std::path::Path) -> Result<(), String> {
         .join("Codex");
     fs::create_dir_all(&install_dir).map_err(|err| format!("创建 Codex 安装目录失败：{err}"))?;
 
-    let status = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
-            &path.to_string_lossy(),
-            &install_dir.to_string_lossy(),
-        ])
-        .status()
-        .map_err(|err| format!("解压 Codex ZIP 包失败：{err}"))?;
-
-    if !status.success() {
-        return Err("解压 Codex ZIP 包失败，请检查压缩包是否完整。".to_string());
-    }
+    extract_zip_package(path, &install_dir)?;
 
     if find_codex_in_openai_install().is_none() {
         return Err("ZIP 包已解压，但没有找到 codex.exe。".to_string());
     }
 
     Ok(())
+}
+
+fn extract_zip_package(
+    path: &std::path::Path,
+    install_dir: &std::path::Path,
+) -> Result<(), String> {
+    let tar_result = Command::new("tar")
+        .arg("-xf")
+        .arg(path)
+        .arg("-C")
+        .arg(install_dir)
+        .output();
+
+    match tar_result {
+        Ok(output) if output.status.success() => return Ok(()),
+        Ok(output) => {
+            let tar_error = output_to_string(&output);
+            match extract_zip_with_powershell(path, install_dir) {
+                Ok(()) => return Ok(()),
+                Err(message) => {
+                    return Err(format!(
+                        "{}\n{}",
+                        format_extract_failure("tar", &tar_error),
+                        message
+                    ))
+                }
+            }
+        }
+        Err(err) => match extract_zip_with_powershell(path, install_dir) {
+            Ok(()) => return Ok(()),
+            Err(message) => {
+                return Err(format!(
+                    "{}\n{}",
+                    format_extract_failure("tar", &err.to_string()),
+                    message
+                ))
+            }
+        },
+    }
+}
+
+fn extract_zip_with_powershell(
+    path: &std::path::Path,
+    install_dir: &std::path::Path,
+) -> Result<(), String> {
+    let output = Command::new("powershell")
+        .args([
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-Command",
+            "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
+        ])
+        .arg(path)
+        .arg(install_dir)
+        .output()
+        .map_err(|err| format_extract_failure("PowerShell Expand-Archive", &err.to_string()))?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    Err(format_extract_failure(
+        "PowerShell Expand-Archive",
+        &output_to_string(&output),
+    ))
+}
+
+fn output_to_string(output: &std::process::Output) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if !stderr.is_empty() {
+        return stderr;
+    }
+
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn format_extract_failure(tool: &str, detail: &str) -> String {
+    let detail = detail.trim();
+    if detail.is_empty() {
+        return format!("解压 Codex ZIP 包失败：{tool} 未返回详细错误。");
+    }
+
+    format!("解压 Codex ZIP 包失败：{tool}：{detail}")
 }
 
 fn find_codex_executable() -> Option<std::path::PathBuf> {
@@ -575,6 +642,14 @@ mod tests {
             file_sha256(&package_path).expect("sha256"),
             "ecec675b44cd12878ff1d953dc4f7f2df6a3761f01ba66ba8a39106fcc0ad114"
         );
+    }
+
+    #[test]
+    fn formats_extract_failure_with_tool_output() {
+        let message = format_extract_failure("tar", "cannot create file");
+
+        assert!(message.contains("tar"));
+        assert!(message.contains("cannot create file"));
     }
 
     #[test]
