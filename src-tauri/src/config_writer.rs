@@ -26,10 +26,15 @@ pub fn write_codex_config(config_dir: &Path, provider: &CodexProviderConfig) -> 
 
     let config_path = config_dir.join("config.toml");
     let auth_path = config_dir.join("auth.json");
+    let existing_config = match fs::read_to_string(&config_path) {
+        Ok(content) => content,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(err) => return Err(format!("读取 config.toml 失败: {err}")),
+    };
     backup_if_exists(&config_path)?;
     backup_if_exists(&auth_path)?;
 
-    fs::write(&config_path, build_config_toml(provider))
+    fs::write(&config_path, build_config_toml(&existing_config, provider))
         .map_err(|err| format!("写入 config.toml 失败: {err}"))?;
     fs::write(&auth_path, build_auth_json(&auth_path, &provider.api_key)?)
         .map_err(|err| format!("写入 auth.json 失败: {err}"))?;
@@ -69,7 +74,60 @@ fn next_backup_path(path: &Path) -> PathBuf {
     unreachable!("backup index loop should always return")
 }
 
-fn build_config_toml(provider: &CodexProviderConfig) -> String {
+fn build_config_toml(existing_config: &str, provider: &CodexProviderConfig) -> String {
+    let preserved_config = preserve_unmanaged_config(existing_config);
+    let managed_config = build_managed_config_toml(provider);
+
+    if preserved_config.trim().is_empty() {
+        managed_config
+    } else {
+        format!("{}\n\n{}", preserved_config.trim_end(), managed_config)
+    }
+}
+
+fn preserve_unmanaged_config(existing_config: &str) -> String {
+    let mut preserved = Vec::new();
+    let mut in_custom_provider = false;
+    let mut in_section = false;
+
+    for line in existing_config.lines() {
+        let trimmed = line.trim();
+
+        if is_toml_header(trimmed) {
+            in_custom_provider = trimmed == "[model_providers.custom]";
+            in_section = true;
+        }
+
+        if in_custom_provider {
+            continue;
+        }
+
+        if !in_section && is_managed_top_level_key(trimmed) {
+            continue;
+        }
+
+        preserved.push(line);
+    }
+
+    preserved.join("\n")
+}
+
+fn is_toml_header(trimmed_line: &str) -> bool {
+    trimmed_line.starts_with('[') && trimmed_line.ends_with(']')
+}
+
+fn is_managed_top_level_key(trimmed_line: &str) -> bool {
+    let Some((key, _)) = trimmed_line.split_once('=') else {
+        return false;
+    };
+
+    matches!(
+        key.trim(),
+        "model" | "model_provider" | "cli_auth_credentials_store"
+    )
+}
+
+fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
     let model = provider
         .default_model
         .as_deref()
@@ -197,5 +255,97 @@ mod tests {
             fs::read_to_string(config_dir.join("config.toml.bak.1")).expect("numbered backup"),
             "old_config = true\n"
         );
+    }
+
+    #[test]
+    fn preserves_unrelated_existing_config() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let config_dir = temp_dir.path();
+        fs::write(
+            config_dir.join("config.toml"),
+            concat!(
+                "notify = [\"tool\"]\n",
+                "\n",
+                "[features]\n",
+                "memories = true\n",
+                "\n",
+                "[model_providers.other]\n",
+                "name = \"other\"\n",
+                "base_url = \"https://other.test/v1\"\n"
+            ),
+        )
+        .expect("old config");
+
+        let provider = CodexProviderConfig {
+            name: "Proxy Test".to_string(),
+            base_url: "https://proxy.test/v1".to_string(),
+            api_key: "test-key".to_string(),
+            protocol: "responses".to_string(),
+            default_model: Some("gpt-test".to_string()),
+            user_agent: "CodexManager/1.0".to_string(),
+        };
+
+        write_codex_config(config_dir, &provider).expect("write config");
+
+        let config_toml = fs::read_to_string(config_dir.join("config.toml")).expect("new config");
+        assert!(config_toml.contains("notify = [\"tool\"]"));
+        assert!(config_toml.contains("[features]\nmemories = true"));
+        assert!(config_toml.contains("[model_providers.other]\nname = \"other\""));
+        assert!(config_toml.contains(r#"model = "gpt-test""#));
+        assert!(config_toml.contains(r#"model_provider = "custom""#));
+        assert!(config_toml.contains(r#"cli_auth_credentials_store = "file""#));
+        assert!(config_toml.contains("[model_providers.custom]"));
+        assert!(config_toml.contains(r#"base_url = "https://proxy.test/v1""#));
+    }
+
+    #[test]
+    fn replaces_existing_custom_provider_block_and_managed_keys() {
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+        let config_dir = temp_dir.path();
+        fs::write(
+            config_dir.join("config.toml"),
+            concat!(
+                "model = \"old-model\"\n",
+                "model_provider = \"old-provider\"\n",
+                "cli_auth_credentials_store = \"old-store\"\n",
+                "keep_me = true\n",
+                "\n",
+                "[model_providers.custom]\n",
+                "name = \"old custom\"\n",
+                "base_url = \"https://old.test/v1\"\n",
+                "wire_api = \"chat\"\n",
+                "requires_openai_auth = false\n",
+                "\n",
+                "[features]\n",
+                "memories = true\n"
+            ),
+        )
+        .expect("old config");
+
+        let provider = CodexProviderConfig {
+            name: "New Proxy".to_string(),
+            base_url: "https://new.test/v1".to_string(),
+            api_key: "test-key".to_string(),
+            protocol: "responses".to_string(),
+            default_model: Some("gpt-new".to_string()),
+            user_agent: "CodexManager/1.0".to_string(),
+        };
+
+        write_codex_config(config_dir, &provider).expect("write config");
+
+        let config_toml = fs::read_to_string(config_dir.join("config.toml")).expect("new config");
+        assert!(config_toml.contains("keep_me = true"));
+        assert!(config_toml.contains("[features]\nmemories = true"));
+        assert!(config_toml.contains(r#"model = "gpt-new""#));
+        assert!(config_toml.contains(r#"name = "New Proxy""#));
+        assert!(config_toml.contains(r#"base_url = "https://new.test/v1""#));
+        assert!(config_toml.contains(r#"wire_api = "responses""#));
+        assert!(config_toml.contains("requires_openai_auth = true"));
+        assert!(!config_toml.contains("old-model"));
+        assert!(!config_toml.contains("old-provider"));
+        assert!(!config_toml.contains("old-store"));
+        assert!(!config_toml.contains("old custom"));
+        assert!(!config_toml.contains("https://old.test/v1"));
+        assert_eq!(config_toml.matches("[model_providers.custom]").count(), 1);
     }
 }
