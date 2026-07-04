@@ -42,7 +42,8 @@ pub fn run() {
             installer::get_install_status,
             installer::open_codex,
             installer::read_mirror_manifest,
-            updater::check_update
+            updater::check_update,
+            updater::download_and_install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

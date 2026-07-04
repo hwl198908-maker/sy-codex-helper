@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { listen } from "@tauri-apps/api/event";
 import {
   Alert,
   Anchor,
@@ -9,6 +9,7 @@ import {
   Group,
   List,
   Paper,
+  Progress,
   SimpleGrid,
   Stack,
   Switch,
@@ -24,12 +25,39 @@ type CompleteStepProps = {
   providerForm: ProviderFormState;
 };
 
+type UpdateDownloadProgress = {
+  downloaded: number;
+  total?: number;
+  percent?: number;
+};
+
+type UpdateInstallResult = {
+  version: string;
+  path: string;
+  reusedCachedFile: boolean;
+};
+
 export function CompleteStep({ providerForm }: CompleteStepProps) {
   const [status, setStatus] = useState("最后一步：点击上方按钮打开 Codex 桌面 App。");
   const [updateStatus, setUpdateStatus] = useState("尚未检查更新。");
   const [updateManifest, setUpdateManifest] = useState<UpdateManifest | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [isInstallingUpdate, setIsInstallingUpdate] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState<UpdateDownloadProgress | null>(null);
   const [enhancedMenu, setEnhancedMenu] = useState(true);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen<UpdateDownloadProgress>("update-download-progress", (event) => {
+      setDownloadProgress(event.payload);
+    }).then((nextUnlisten) => {
+      unlisten = nextUnlisten;
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   async function openCodex() {
     setStatus("正在打开 Codex 桌面 App...");
@@ -61,12 +89,22 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
     }
   }
 
-  async function openDownload(url: string) {
+  async function installUpdate(manifest: UpdateManifest) {
+    setIsInstallingUpdate(true);
+    setDownloadProgress(null);
+    setUpdateStatus(`正在下载新版本 ${manifest.version}...`);
+
     try {
-      await openUrl(url);
-      setUpdateStatus("已打开新版下载链接，请在浏览器中下载安装。");
+      const result = await invoke<UpdateInstallResult>("download_and_install_update", { manifest });
+      setUpdateStatus(
+        result.reusedCachedFile
+          ? `已使用缓存安装包，正在启动 ${result.version} 安装程序。`
+          : `新版本 ${result.version} 下载完成，正在启动安装程序。`
+      );
     } catch (error) {
-      setUpdateStatus(`打开下载链接失败：${error instanceof Error ? error.message : String(error)}`);
+      setUpdateStatus(`在线更新失败：${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsInstallingUpdate(false);
     }
   }
 
@@ -139,9 +177,19 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
         <Group>
           <Button variant="default" onClick={checkUpdate} loading={isCheckingUpdate}>检查更新</Button>
           {updateManifest && isNewerVersion(APP_VERSION, updateManifest.version) && (
-            <Button variant="light" onClick={() => void openDownload(updateManifest.downloadUrl)}>下载新版</Button>
+            <Button variant="light" onClick={() => void installUpdate(updateManifest)} loading={isInstallingUpdate}>立即更新</Button>
           )}
         </Group>
+
+        {isInstallingUpdate && (
+          <Paper withBorder radius="md" p="md">
+            <Text fw={700}>正在下载新版安装包</Text>
+            <Progress value={downloadProgress?.percent ?? 0} mt="sm" animated />
+            <Text size="sm" c="dimmed" mt={6}>
+              {formatDownloadProgress(downloadProgress)}
+            </Text>
+          </Paper>
+        )}
 
         <Alert color="gray" variant="light">
           <Text>{status}</Text>
@@ -152,4 +200,26 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
       </Stack>
     </Paper>
   );
+}
+
+function formatDownloadProgress(progress: UpdateDownloadProgress | null): string {
+  if (!progress) {
+    return "正在连接更新服务器...";
+  }
+
+  if (progress.total && progress.percent !== undefined) {
+    return `${formatBytes(progress.downloaded)} / ${formatBytes(progress.total)}，${progress.percent}%`;
+  }
+
+  return `已下载 ${formatBytes(progress.downloaded)}`;
+}
+
+function formatBytes(value: number): string {
+  if (value >= 1024 * 1024) {
+    return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  }
+  if (value >= 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+  return `${value} B`;
 }

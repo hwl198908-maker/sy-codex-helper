@@ -69,11 +69,14 @@ describe("final package guidance", () => {
     expect(feedbackStep).toContain("FEEDBACK_ENDPOINT_URL");
   });
 
-  it("opens update downloads through the Tauri opener plugin", () => {
+  it("downloads update installers inside the app", () => {
     const completeStep = readProjectFile("src/components/CompleteStep.tsx");
+    const tauriLib = readProjectFile("src-tauri/src/lib.rs");
 
-    expect(completeStep).toContain("@tauri-apps/plugin-opener");
-    expect(completeStep).toContain("openUrl");
+    expect(completeStep).toContain("update-download-progress");
+    expect(completeStep).toContain("download_and_install_update");
+    expect(completeStep).toContain("<Progress");
+    expect(tauriLib).toContain("updater::download_and_install_update");
     expect(completeStep).not.toContain("window.open");
   });
 

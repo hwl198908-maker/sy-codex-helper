@@ -1,6 +1,7 @@
 export type UpdateManifest = {
   version: string;
   downloadUrl: string;
+  sha256?: string;
   notes?: string;
 };
 
@@ -17,6 +18,7 @@ export function parseUpdateManifest(value: unknown): UpdateManifest {
   return {
     version: manifest.version,
     downloadUrl: manifest.downloadUrl,
+    sha256: typeof manifest.sha256 === "string" ? manifest.sha256 : undefined,
     notes: typeof manifest.notes === "string" ? manifest.notes : undefined
   };
 }

@@ -7,11 +7,13 @@ describe("parseUpdateManifest", () => {
       parseUpdateManifest({
         version: "0.1.1",
         downloadUrl: "https://example.com/SY-Codex.exe",
+        sha256: "abc123",
         notes: "界面优化"
       })
     ).toEqual({
       version: "0.1.1",
       downloadUrl: "https://example.com/SY-Codex.exe",
+      sha256: "abc123",
       notes: "界面优化"
     });
   });
