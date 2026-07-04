@@ -11,6 +11,7 @@ import {
   Paper,
   SimpleGrid,
   Stack,
+  Switch,
   Text,
   ThemeIcon,
   Title
@@ -28,11 +29,12 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
   const [updateStatus, setUpdateStatus] = useState("尚未检查更新。");
   const [updateManifest, setUpdateManifest] = useState<UpdateManifest | null>(null);
   const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [enhancedMenu, setEnhancedMenu] = useState(true);
 
   async function openCodex() {
     setStatus("正在打开 Codex 桌面 App...");
     try {
-      await invoke("open_codex");
+      await invoke("open_codex", { enhancedMenu });
       setStatus("已尝试打开 Codex。如果没有看到窗口，请确认 Codex 已安装完成。");
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err));
@@ -101,6 +103,21 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
             </Text>
           </Paper>
         </SimpleGrid>
+
+        <Paper withBorder radius="md" p="md">
+          <Group justify="space-between" align="center" gap="md">
+            <div>
+              <Text fw={700}>Codex 中文菜单增强</Text>
+              <Text size="sm" c="dimmed" mt={4}>
+                默认开启，不修改官方安装包；打开 Codex 时运行时汉化原生菜单。
+              </Text>
+            </div>
+            <Switch
+              checked={enhancedMenu}
+              onChange={(event) => setEnhancedMenu(event.currentTarget.checked)}
+            />
+          </Group>
+        </Paper>
 
         <Paper withBorder radius="md" p="md">
           <Text fw={700}>SY API 配置教程</Text>

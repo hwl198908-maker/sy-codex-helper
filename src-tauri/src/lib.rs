@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub mod config_writer;
 pub mod installer;
+pub mod native_menu;
 pub mod storage;
 pub mod updater;
 

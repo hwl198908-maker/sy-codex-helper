@@ -1,5 +1,5 @@
 use sha2::{Digest, Sha256};
-use std::{fs, io::Read, path::Path, process::Command, time::Duration};
+use std::{fs, io::Read, net::TcpListener, path::Path, process::Command, time::Duration};
 use tauri::Emitter;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -68,7 +68,11 @@ pub fn download_and_open_codex(
 }
 
 #[tauri::command]
-pub fn open_codex() -> Result<(), String> {
+pub fn open_codex(enhanced_menu: Option<bool>) -> Result<(), String> {
+    if enhanced_menu.unwrap_or(true) && open_codex_with_enhancements().is_ok() {
+        return Ok(());
+    }
+
     let executable = find_codex_executable()
         .ok_or_else(|| "没有找到 Codex 可执行文件，请先完成安装。".to_string())?;
     let workspace = default_codex_workspace();
@@ -76,6 +80,19 @@ pub fn open_codex() -> Result<(), String> {
         .args(build_codex_app_args(&workspace))
         .spawn()
         .map_err(|err| format!("打开 Codex 失败：{err}"))?;
+    Ok(())
+}
+
+fn open_codex_with_enhancements() -> Result<(), String> {
+    let remote_debugging_port = select_local_port(39220);
+    let inspector_port = select_local_port(remote_debugging_port.saturating_add(100));
+    let arguments = command_line_arguments(&build_codex_enhanced_args(
+        remote_debugging_port,
+        inspector_port,
+    ));
+
+    activate_packaged_codex(&arguments)?;
+    crate::native_menu::spawn_native_menu_localizer(inspector_port);
     Ok(())
 }
 
@@ -510,6 +527,103 @@ fn build_codex_app_args(workspace: &Path) -> Vec<String> {
     vec!["app".to_string(), workspace.to_string_lossy().to_string()]
 }
 
+fn build_codex_enhanced_args(remote_debugging_port: u16, inspector_port: u16) -> Vec<String> {
+    vec![
+        format!("--remote-debugging-port={remote_debugging_port}"),
+        format!("--remote-allow-origins=http://127.0.0.1:{remote_debugging_port}"),
+        format!("--inspect=127.0.0.1:{inspector_port}"),
+    ]
+}
+
+fn select_local_port(preferred: u16) -> u16 {
+    (preferred..preferred.saturating_add(100))
+        .find(|port| TcpListener::bind(("127.0.0.1", *port)).is_ok())
+        .unwrap_or(preferred)
+}
+
+fn command_line_arguments(args: &[String]) -> String {
+    args.iter()
+        .map(|arg| quote_windows_argument(arg))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn quote_windows_argument(arg: &str) -> String {
+    if !arg.is_empty() && !arg.bytes().any(|byte| matches!(byte, b' ' | b'\t' | b'"')) {
+        return arg.to_string();
+    }
+
+    let mut output = String::from("\"");
+    let mut backslashes = 0;
+    for ch in arg.chars() {
+        match ch {
+            '\\' => backslashes += 1,
+            '"' => {
+                output.push_str(&"\\".repeat(backslashes * 2 + 1));
+                output.push('"');
+                backslashes = 0;
+            }
+            _ => {
+                output.push_str(&"\\".repeat(backslashes));
+                output.push(ch);
+                backslashes = 0;
+            }
+        }
+    }
+    output.push_str(&"\\".repeat(backslashes * 2));
+    output.push('"');
+    output
+}
+
+#[cfg(windows)]
+fn activate_packaged_codex(arguments: &str) -> Result<u32, String> {
+    use windows::core::HSTRING;
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_LOCAL_SERVER,
+        COINIT_APARTMENTTHREADED,
+    };
+    use windows::Win32::UI::Shell::{ApplicationActivationManager, IApplicationActivationManager};
+
+    const CODEX_APP_USER_MODEL_ID: &str = "OpenAI.Codex_2p2nqsd0c76g0!App";
+
+    unsafe {
+        let coinit = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let should_uninitialize = coinit.is_ok();
+        coinit
+            .ok()
+            .or_else(|error| {
+                const RPC_E_CHANGED_MODE: i32 = -2147417850;
+                if error.code().0 == RPC_E_CHANGED_MODE {
+                    Ok(())
+                } else {
+                    Err(error)
+                }
+            })
+            .map_err(|err| format!("初始化 Codex 增强启动器失败: {err}"))?;
+
+        let result = (|| -> windows::core::Result<u32> {
+            let manager: IApplicationActivationManager =
+                CoCreateInstance(&ApplicationActivationManager, None, CLSCTX_LOCAL_SERVER)?;
+            manager.ActivateApplication(
+                &HSTRING::from(CODEX_APP_USER_MODEL_ID),
+                &HSTRING::from(arguments),
+                windows::Win32::UI::Shell::ACTIVATEOPTIONS(0),
+            )
+        })();
+
+        if should_uninitialize {
+            CoUninitialize();
+        }
+
+        result.map_err(|err| format!("增强方式打开 Codex 失败: {err}"))
+    }
+}
+
+#[cfg(not(windows))]
+fn activate_packaged_codex(_arguments: &str) -> Result<u32, String> {
+    Err("Codex 增强启动仅支持 Windows。".to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -699,6 +813,31 @@ mod tests {
         assert_eq!(
             build_codex_app_args(workspace),
             vec!["app".to_string(), r"D:\Codex Manager".to_string()]
+        );
+    }
+
+    #[test]
+    fn builds_enhanced_codex_args_with_debug_and_inspector_ports() {
+        assert_eq!(
+            build_codex_enhanced_args(39220, 39320),
+            vec![
+                "--remote-debugging-port=39220".to_string(),
+                "--remote-allow-origins=http://127.0.0.1:39220".to_string(),
+                "--inspect=127.0.0.1:39320".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn quotes_windows_arguments_only_when_needed() {
+        assert_eq!(quote_windows_argument("--flag=value"), "--flag=value");
+        assert_eq!(
+            quote_windows_argument(r"D:\Codex Manager"),
+            r#""D:\Codex Manager""#
+        );
+        assert_eq!(
+            quote_windows_argument(r#"value "quoted""#),
+            r#""value \"quoted\"""#
         );
     }
 }
