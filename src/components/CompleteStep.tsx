@@ -1,8 +1,8 @@
 const summary = [
   ["安装状态", "等待接入安装命令"],
-  ["配置状态", "等待接入保存命令"],
+  ["配置状态", "保存 API 设置后写入 Codex 配置"],
   ["默认模型", "尚未选择"],
-  ["配置目录", "%APPDATA%\\codex-manager"],
+  ["配置目录", "%USERPROFILE%\\.codex"],
 ];
 
 export function CompleteStep() {
@@ -11,7 +11,7 @@ export function CompleteStep() {
       <div className="section-heading">
         <p className="eyebrow">完成</p>
         <h2 id="complete-title">检查配置结果</h2>
-        <p>后续接入后，这里会显示真实安装、配置和模型状态。</p>
+        <p>这里展示本机配置会写到哪里，不代表实时检测到的运行状态。</p>
       </div>
 
       <dl className="summary-list">
@@ -30,7 +30,7 @@ export function CompleteStep() {
       </div>
 
       <div className="status-box" role="status">
-        本地状态：按钮暂为占位操作，暂不执行后端命令。
+        保存 API 设置后，应用会把 Codex 配置和登录凭据写入 %USERPROFILE%\.codex，并在覆盖前自动备份旧配置。
       </div>
     </section>
   );

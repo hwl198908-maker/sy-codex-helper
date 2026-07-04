@@ -58,8 +58,7 @@ npm run tauri build
   "tools": [
     {
       "toolId": "codex",
-      "platform": "windows",
-      "arch": "x64",
+      "platform": "windows-x64",
       "version": "1.2.3",
       "packageUrl": "https://mirror.example.invalid/codex/windows/x64/codex-1.2.3.exe",
       "checksumSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

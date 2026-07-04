@@ -19,13 +19,6 @@ fn save_provider_record(provider: config_writer::CodexProviderConfig) -> Result<
     storage::save_provider(&provider)
 }
 
-#[tauri::command]
-fn load_provider_record(
-    name: String,
-) -> Result<Option<config_writer::CodexProviderConfig>, String> {
-    storage::load_provider(&name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -34,7 +27,6 @@ pub fn run() {
             greet,
             write_provider_config,
             save_provider_record,
-            load_provider_record,
             installer::get_install_status,
             installer::read_mirror_manifest
         ])
