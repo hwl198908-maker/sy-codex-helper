@@ -3,22 +3,19 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
   Alert,
-  Anchor,
   Badge,
   Button,
   Group,
-  List,
   Paper,
   Progress,
   SimpleGrid,
   Stack,
   Switch,
   Text,
-  ThemeIcon,
   Title
 } from "@mantine/core";
 import type { ProviderFormState } from "../types";
-import { APP_VERSION, SY_API_SITE_URL, UPDATE_MANIFEST_URL } from "../lib/defaults";
+import { APP_VERSION, UPDATE_MANIFEST_URL } from "../lib/defaults";
 import { isNewerVersion, parseUpdateManifest, type UpdateManifest } from "../lib/updates";
 
 type CompleteStepProps = {
@@ -157,18 +154,6 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
               onChange={(event) => setEnhancedMenu(event.currentTarget.checked)}
             />
           </Group>
-        </Paper>
-
-        <Paper withBorder radius="md" p="md">
-          <Text fw={700}>SY API 配置教程</Text>
-          <List mt="sm" spacing="xs" icon={<ThemeIcon color="blue" size={20} radius="xl">✓</ThemeIcon>}>
-            <List.Item>
-              打开 <Anchor href={SY_API_SITE_URL} target="_blank" rel="noreferrer">www.syapi.com</Anchor>。
-            </List.Item>
-            <List.Item>充值后创建令牌，把令牌复制到“配置 API”的 API Key。</List.Item>
-            <List.Item>点击“一键获取上游模型”，选择模型后保存配置。</List.Item>
-            <List.Item>客服联系方式：weixxxnb。</List.Item>
-          </List>
         </Paper>
 
         <Alert color="yellow" variant="light">

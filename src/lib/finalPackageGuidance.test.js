@@ -23,10 +23,24 @@ describe("final package guidance", () => {
     expect(app).toContain("SY Codex（聚合安装）");
     expect(app).toContain("中文增强");
     expect(app).toContain("意见反馈");
-    expect(app).toContain("guide-next-button");
+    expect(app).toContain("main-workflow-grid");
+    expect(app).not.toContain("guide-next-button");
     expect(app).not.toContain("footer-actions");
     expect(app).toContain("ProviderFormState");
     expect(app).toContain("setProviderForm");
+  });
+
+  it("shows the core beginner workflow on one screen", () => {
+    const app = readProjectFile("src/App.tsx");
+
+    expect(app).toContain("main-workflow-grid");
+    expect(app).toContain("<ToolStep />");
+    expect(app).toContain("<InstallStep />");
+    expect(app).toContain("<ProviderStep form={providerForm} onFormChange={setProviderForm} />");
+    expect(app).toContain("<CompleteStep providerForm={providerForm} />");
+    expect(app).not.toContain('step === "provider"');
+    expect(app).not.toContain('step === "install"');
+    expect(app).not.toContain('step === "complete"');
   });
 
   it("keeps style settings immediately before feedback", () => {
