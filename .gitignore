@@ -29,6 +29,7 @@ target
 auth.json
 config.toml
 .codex/
+.superpowers/
 .tmp/
 *.jsonl
 *.local
