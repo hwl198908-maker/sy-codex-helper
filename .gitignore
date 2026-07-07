@@ -10,6 +10,27 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+src-tauri/target
+target
+*.exe
+*.msi
+*.msix
+*.msixbundle
+*.zip
+*.7z
+*.pfx
+*.pem
+*.key
+*.crt
+*.cer
+*.env
+*.env.*
+!.env.example
+auth.json
+config.toml
+.codex/
+.tmp/
+*.jsonl
 *.local
 
 # Editor directories and files
