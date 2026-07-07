@@ -188,6 +188,12 @@ fn toml_string(value: &str) -> String {
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::{Mutex, OnceLock};
+
+    fn env_lock() -> &'static Mutex<()> {
+        static ENV_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        ENV_LOCK.get_or_init(|| Mutex::new(()))
+    }
 
     #[test]
     fn writes_config_and_auth_with_backups() {
@@ -234,6 +240,30 @@ mod tests {
                 .expect("valid auth json");
         assert_eq!(auth_json["OPENAI_API_KEY"], "test-key");
         assert_eq!(auth_json["OTHER_FIELD"], "keep-me");
+    }
+
+    #[test]
+    fn default_codex_dir_falls_back_to_home_for_mac_style_paths() {
+        let _guard = env_lock().lock().expect("env lock");
+        let old_userprofile = std::env::var_os("USERPROFILE");
+        let old_home = std::env::var_os("HOME");
+        let temp_dir = tempfile::tempdir().expect("temp dir");
+
+        std::env::remove_var("USERPROFILE");
+        std::env::set_var("HOME", temp_dir.path());
+
+        let codex_dir = default_codex_dir().expect("codex dir");
+
+        assert_eq!(codex_dir, temp_dir.path().join(".codex"));
+
+        match old_userprofile {
+            Some(value) => std::env::set_var("USERPROFILE", value),
+            None => std::env::remove_var("USERPROFILE"),
+        }
+        match old_home {
+            Some(value) => std::env::set_var("HOME", value),
+            None => std::env::remove_var("HOME"),
+        }
     }
 
     #[test]

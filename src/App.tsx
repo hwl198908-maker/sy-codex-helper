@@ -10,6 +10,7 @@ import {
   MantineProvider,
   Paper,
   Progress,
+  SimpleGrid,
   Stack,
   Text,
   Title
@@ -24,6 +25,7 @@ import { CompleteStep } from "./components/CompleteStep";
 import { StyleSettingsStep } from "./components/StyleSettingsStep";
 import { FeedbackStep } from "./components/FeedbackStep";
 import {
+  APP_VERSION,
   DEFAULT_PROVIDER_BASE_URL,
   DEFAULT_PROVIDER_MODEL,
   DEFAULT_PROVIDER_PROTOCOL
@@ -39,32 +41,32 @@ type StepGuide = {
 const stepGuides: Record<WizardStep, StepGuide> = {
   tool: {
     label: "01",
-    current: "选择 Codex，确认本次安装工具",
-    next: "下一步下载 Codex 桌面 App",
+    current: "选择工具：本版本主打 Codex 一键安装和 API 配置",
+    next: "下一步下载安装 Codex 桌面 App",
     action: "下一步",
   },
   install: {
     label: "02",
-    current: "下载并安装 Codex 桌面 App",
-    next: "下一步配置代理 API 和令牌",
+    current: "下载并安装 Codex，使用默认线路即可",
+    next: "安装完成后配置 API 供应商和令牌",
     action: "下一步",
   },
   provider: {
     label: "03",
-    current: "配置代理 API、令牌和 GPT-5.5 模型",
+    current: "选择 API 供应商，粘贴 Key，并一键获取上游模型",
     next: "保存后打开 Codex 桌面 App",
     action: "下一步",
   },
   complete: {
     label: "04",
     current: "完成配置，打开 Codex 桌面 App",
-    next: "下一步进入设置风格页面",
+    next: "可继续设置中文增强和界面风格",
     action: "下一步",
   },
   style: {
     label: "05",
     current: "设置界面风格和 Codex 中文增强",
-    next: "下一步提交意见反馈",
+    next: "最后可以提交意见反馈",
     action: "下一步",
   },
   feedback: {
@@ -77,10 +79,10 @@ const stepGuides: Record<WizardStep, StepGuide> = {
 
 const stepLabels: Record<WizardStep, string> = {
   tool: "选择工具",
-  install: "下载 Codex",
+  install: "安装 Codex",
   provider: "配置 API",
   complete: "打开 Codex",
-  style: "设置风格",
+  style: "中文增强",
   feedback: "意见反馈",
 };
 
@@ -98,6 +100,7 @@ const stepProgress: Record<WizardStep, number> = {
 export default function App() {
   const [step, setStep] = useState<WizardStep>("tool");
   const [providerForm, setProviderForm] = useState<ProviderFormState>({
+    providerPresetId: "sy_api",
     baseUrl: DEFAULT_PROVIDER_BASE_URL,
     apiKey: "",
     protocol: DEFAULT_PROVIDER_PROTOCOL,
@@ -108,7 +111,7 @@ export default function App() {
   return (
     <MantineProvider defaultColorScheme="light">
       <AppShell className="app-bg">
-        <Container size={980} py="md">
+        <Container size={1080} py="md">
           <Stack gap="md">
             <Paper className="hero-card" radius="md" p="lg">
               <Group justify="space-between" align="flex-start" gap="md">
@@ -116,10 +119,13 @@ export default function App() {
                   <Badge color="blue" variant="light">聚合安装</Badge>
                   <Title id="app-title" order={1} mt={8}>SY Codex（聚合安装）</Title>
                   <Text c="dimmed" mt={6}>
-                    一键安装 Codex，预留 OpenClaw，并完成 SY API 中转配置。
+                    一键安装 Codex，并完成代理 API 配置。新手按步骤操作即可。
                   </Text>
                 </Box>
-                <Badge size="lg" color="green" variant="filled">GPT-5.5</Badge>
+                <Group gap="xs">
+                  <Badge size="lg" color="green" variant="filled">GPT-5.5</Badge>
+                  <Badge size="lg" color="gray" variant="light">v{APP_VERSION}</Badge>
+                </Group>
               </Group>
               <Progress value={stepProgress[step]} mt="md" radius="xl" />
             </Paper>
@@ -157,9 +163,29 @@ export default function App() {
               </Group>
             </Paper>
 
+            {step === "provider" ? (
+              <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+                <ProviderStep form={providerForm} onFormChange={setProviderForm} />
+                <Paper className="panel tutorial-panel" radius="md" p="xl">
+                  <Stack gap="sm">
+                    <div>
+                      <Text className="eyebrow">新手教程</Text>
+                      <Title order={2}>SY API 配置步骤</Title>
+                    </div>
+                    <Text><b>1. 打开网站：</b>进入 www.syapi.com。</Text>
+                    <Text><b>2. 充值：</b>登录后跳转充值页面完成充值。</Text>
+                    <Text><b>3. 创建令牌：</b>在后台创建 API 令牌，复制生成的 Key。</Text>
+                    <Text><b>4. 回到软件：</b>粘贴 Key，点击“一键获取上游模型”。</Text>
+                    <Text><b>5. 保存配置：</b>选择模型后保存，再打开 Codex。</Text>
+                    <Text c="dimmed">Windows 写入 %USERPROFILE%\.codex；Mac 写入 ~/.codex。</Text>
+                    <Text fw={700}>客服联系方式：weixxxnb</Text>
+                  </Stack>
+                </Paper>
+              </SimpleGrid>
+            ) : null}
+
             {step === "tool" && <ToolStep />}
             {step === "install" && <InstallStep />}
-            {step === "provider" && <ProviderStep form={providerForm} onFormChange={setProviderForm} />}
             {step === "complete" && <CompleteStep providerForm={providerForm} />}
             {step === "style" && <StyleSettingsStep />}
             {step === "feedback" && <FeedbackStep />}

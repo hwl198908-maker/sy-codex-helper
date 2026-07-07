@@ -98,7 +98,7 @@ export function InstallStep() {
 
         <TextInput
           label="默认下载线路"
-          description="一般保持默认即可。"
+          description="为了避免发布后下载到旧版本，这里继续使用原来的稳定下载地址。"
           value={mirrorBaseUrl}
           onChange={(event) => setMirrorBaseUrl(event.currentTarget.value)}
           placeholder={DEFAULT_MIRROR_BASE_URL}
@@ -109,7 +109,7 @@ export function InstallStep() {
             检查安装包
           </Button>
           <Button onClick={downloadAndInstall} loading={isInstalling}>
-            安装 Codex
+            下载并安装 Codex
           </Button>
         </Group>
 
@@ -129,10 +129,10 @@ export function InstallStep() {
             </Stack>
           )}
           {!error && installMessage && <Text>{installMessage}</Text>}
-          {!error && codexPackage && <Text>可用版本：Codex Windows {codexPackage.version}</Text>}
-          {!error && manifest && !codexPackage && <Text>清单中没有找到 Codex Windows 安装包。</Text>}
+          {!error && codexPackage && <Text>可用版本：Codex {codexPackage.version}</Text>}
+          {!error && manifest && !codexPackage && <Text>清单中没有找到 Codex 安装包。</Text>}
           {!error && !manifest && !installMessage && !isInstalling && (
-            <Text>本地状态：尚未执行安装。可以直接点击“安装 Codex”。</Text>
+            <Text>本地状态：尚未执行安装。可以直接点击“下载并安装 Codex”。</Text>
           )}
         </Alert>
       </Stack>

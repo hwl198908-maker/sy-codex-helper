@@ -24,6 +24,8 @@ export type MirrorToolPackage = {
 
 export type ProviderProtocol = "responses" | "chat_completions";
 
+export type ProviderPresetId = "sy_api" | "deepseek" | "zhipu" | "custom";
+
 export type ProviderConfig = {
   name: string;
   baseUrl: string;
@@ -34,6 +36,7 @@ export type ProviderConfig = {
 };
 
 export type ProviderFormState = {
+  providerPresetId: ProviderPresetId;
   baseUrl: string;
   apiKey: string;
   protocol: ProviderProtocol;

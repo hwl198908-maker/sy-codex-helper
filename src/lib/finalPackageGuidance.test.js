@@ -18,10 +18,10 @@ describe("final package guidance", () => {
     const app = readProjectFile("src/App.tsx");
     const defaults = readProjectFile("src/lib/defaults.ts");
 
-    expect(defaults).toContain("https://www.syapi.vip/v1");
+    expect(defaults).toContain("https://www.syapi.com/v1");
     expect(defaults).toContain("gpt-5.5");
     expect(app).toContain("SY Codex（聚合安装）");
-    expect(app).toContain("设置风格");
+    expect(app).toContain("中文增强");
     expect(app).toContain("意见反馈");
     expect(app).toContain("guide-next-button");
     expect(app).not.toContain("footer-actions");
@@ -64,6 +64,7 @@ describe("final package guidance", () => {
     const feedbackStep = readProjectFile("src/components/FeedbackStep.tsx");
 
     expect(completeStep).toContain("%USERPROFILE%\\.codex");
+    expect(completeStep).toContain("~/.codex");
     expect(completeStep).toContain("enhancedMenu");
     expect(feedbackStep).toContain("submit_feedback");
     expect(feedbackStep).toContain("FEEDBACK_ENDPOINT_URL");
