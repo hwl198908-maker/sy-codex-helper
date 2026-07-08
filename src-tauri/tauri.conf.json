@@ -29,7 +29,7 @@
     "publisher": "Codex Manager",
     "category": "DeveloperTool",
     "shortDescription": "Codex 安装与 OpenAI 兼容 API 配置管理器",
-    "longDescription": "SY Codex 帮助用户安装 Codex，并完成 OpenAI 兼容 API 配置。当前版本启用 Codex 流程，OpenClaw 保留为后续能力。",
+    "longDescription": "SY Codex 帮助用户安装 Codex，并完成 OpenAI 兼容 API 配置。当前版本支持 Codex 流程，OpenClaw 保留为后续能力。",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
