@@ -7,6 +7,10 @@
     "windows-x64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_x64-setup.exe",
       "sha256": "34dd193b53345ccfef118b1e2c969e99fe0e9a170858adcd9190a63526f64f45"
+    },
+    "macos-arm64": {
+      "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_aarch64.dmg",
+      "sha256": "935b776febf898775214a7839023a3102e9504addecb0b9f334689de7de5f77d"
     }
   }
 }
