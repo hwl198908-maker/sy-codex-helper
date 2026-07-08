@@ -33,7 +33,7 @@ export function StyleSettingsStep() {
     <Paper className="panel" radius="md" p="xl">
       <Stack gap="md">
         <div>
-          <Text className="eyebrow">第 4 步</Text>
+          <Text className="eyebrow">第 5 步</Text>
           <Title order={2}>设置风格</Title>
           <Text c="dimmed" mt={6}>
             这里先放新手最容易理解的显示与诊断设置，默认推荐项已经选好。

@@ -98,7 +98,7 @@ export function InstallStep() {
 
         <TextInput
           label="默认下载线路"
-          description="为了避免发布后下载到旧版本，这里继续使用原来的稳定下载地址。"
+          description="这里继续使用原来的稳定下载地址，避免发布后下载到旧版本。"
           value={mirrorBaseUrl}
           onChange={(event) => setMirrorBaseUrl(event.currentTarget.value)}
           placeholder={DEFAULT_MIRROR_BASE_URL}
@@ -108,7 +108,7 @@ export function InstallStep() {
           <Button variant="default" onClick={readManifest} loading={isReading}>
             检查安装包
           </Button>
-          <Button onClick={downloadAndInstall} loading={isInstalling}>
+          <Button className="primary-action" onClick={downloadAndInstall} loading={isInstalling}>
             下载并安装 Codex
           </Button>
         </Group>

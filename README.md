@@ -70,19 +70,19 @@ https://www.syapi.com/v1
 当前版本：
 
 ```text
-0.2.1
+0.2.2
 ```
 
 安装包：
 
 ```text
-https://www.syapi.vip/codex-manager/SY-Codex_0.2.1_x64-setup.exe
+https://www.syapi.vip/codex-manager/SY-Codex_0.2.2_x64-setup.exe
 ```
 
 SHA256：
 
 ```text
-d7ba83a07b79c5ec1cbce67bf5ab44ea8d1ab777d407da297150b3509166c376
+f7ea7dc07e6453f78f4f3450a8311f94b89f2b49f5240531fa2df63b0f6fbb54
 ```
 
 在线更新清单：

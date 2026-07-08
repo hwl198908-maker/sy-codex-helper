@@ -85,7 +85,7 @@ export function FeedbackStep() {
 
         <Group justify="space-between">
           <Text c="dimmed">{status}</Text>
-          <Button onClick={submitFeedback} loading={isSubmitting}>提交反馈</Button>
+          <Button className="primary-action" onClick={submitFeedback} loading={isSubmitting}>提交反馈</Button>
         </Group>
       </Stack>
     </Paper>

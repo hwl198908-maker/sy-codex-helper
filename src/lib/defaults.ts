@@ -3,6 +3,6 @@ export const DEFAULT_PROVIDER_BASE_URL = "https://www.syapi.com/v1";
 export const DEFAULT_PROVIDER_MODEL = "gpt-5.5";
 export const DEFAULT_PROVIDER_PROTOCOL = "responses";
 export const SY_API_SITE_URL = "https://www.syapi.com/";
-export const APP_VERSION = "0.2.1";
+export const APP_VERSION = "0.2.2";
 export const UPDATE_MANIFEST_URL = "https://www.syapi.vip/codex-manager/latest.json";
 export const FEEDBACK_ENDPOINT_URL = "https://www.syapi.vip/codex-manager/feedback";

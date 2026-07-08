@@ -1,6 +1,6 @@
 :root {
   color: #172033;
-  background: #eef3f8;
+  background: #eef4fb;
   font-family:
     Inter, "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif;
   font-synthesis: none;
@@ -22,29 +22,64 @@ body {
 .app-bg {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 15% 10%, rgba(37, 99, 235, 0.18), transparent 30%),
-    radial-gradient(circle at 85% 5%, rgba(16, 185, 129, 0.14), transparent 28%),
-    linear-gradient(135deg, rgba(31, 111, 235, 0.12), rgba(16, 185, 129, 0.08)),
-    #eef3f8;
+    linear-gradient(135deg, rgba(232, 241, 255, 0.96), rgba(248, 252, 255, 0.96)),
+    #eef4fb;
+}
+
+.app-frame {
+  max-width: 1120px;
+}
+
+.hero-card,
+.steps,
+.panel,
+.guide-card {
+  border: 1px solid rgba(135, 154, 185, 0.22);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 45px rgba(40, 61, 94, 0.08);
 }
 
 .hero-card {
-  border: 1px solid rgba(29, 78, 216, 0.14);
-  background: linear-gradient(135deg, #ffffff, #f7fbff);
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(244, 249, 255, 0.94));
+}
+
+.brand-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+  border: 1px solid rgba(76, 111, 255, 0.32);
+  border-radius: 14px;
+  color: #ffffff;
+  background:
+    linear-gradient(145deg, #0f1c4d, #111827 50%, #5b35f6);
+  box-shadow:
+    0 0 0 6px rgba(47, 99, 255, 0.08),
+    0 18px 34px rgba(69, 70, 229, 0.26);
+  font-size: 1.45rem;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.hero-badges {
+  flex: 0 0 auto;
 }
 
 .eyebrow {
   margin: 0 0 6px;
-  color: #2563eb;
+  color: #2d6cf6;
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .steps {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
+  border-radius: 8px;
+  padding: 16px;
 }
 
 .step {
@@ -53,21 +88,22 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 46px;
-  border: 1px solid #d7e0ec;
+  gap: 10px;
+  min-height: 54px;
+  border: 1px solid #dce5f2;
   border-radius: 8px;
-  padding: 8px;
-  color: #5d6b7c;
-  background: rgba(255, 255, 255, 0.78);
+  padding: 10px;
+  color: #66758c;
+  background: rgba(250, 252, 255, 0.88);
   text-align: center;
   cursor: pointer;
-  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, color 140ms ease;
 }
 
 .step:hover {
-  border-color: #8bb5f8;
-  color: #18449b;
+  border-color: #9dbbff;
+  color: #1f4fbf;
+  transform: translateY(-1px);
 }
 
 .step-number {
@@ -79,31 +115,29 @@ body {
   height: 24px;
   border-radius: 999px;
   color: #ffffff;
-  background: #8b98a9;
-  font-weight: 800;
+  background: #93a3ba;
+  font-weight: 900;
 }
 
 .step.active {
-  border-color: #2563eb;
-  color: #18449b;
-  background: #eff6ff;
-  font-weight: 800;
+  border-color: transparent;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2f6df6, #7c3aed);
+  box-shadow: 0 12px 24px rgba(71, 93, 229, 0.25);
+  font-weight: 900;
 }
 
 .step.active .step-number {
-  background: #2563eb;
+  color: #3157de;
+  background: #ffffff;
 }
 
 .panel {
-  border: 1px solid #d7e0ec;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
 }
 
 .guide-card {
-  border: 1px solid rgba(37, 99, 235, 0.18);
-  background: linear-gradient(135deg, #ffffff, #eef6ff);
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+  background: linear-gradient(135deg, #ffffff, #f2f7ff);
 }
 
 .guide-index {
@@ -114,9 +148,10 @@ body {
   height: 58px;
   border-radius: 8px;
   color: #ffffff;
-  background: linear-gradient(135deg, #2563eb, #16a34a);
+  background: linear-gradient(135deg, #2f6df6, #7c3aed);
   font-size: 1.3rem;
-  font-weight: 900;
+  font-weight: 950;
+  box-shadow: 0 10px 22px rgba(79, 70, 229, 0.22);
 }
 
 .guide-copy {
@@ -124,36 +159,70 @@ body {
   flex: 1;
 }
 
-.guide-next-button {
+.guide-next-button,
+.primary-action {
   flex: 0 0 auto;
+  min-width: 116px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2f6df6, #7c3aed);
+  box-shadow: 0 12px 22px rgba(79, 70, 229, 0.22);
   font-weight: 900;
-  min-width: 82px;
+}
+
+.success-action {
+  color: #ffffff;
+  background: linear-gradient(135deg, #12b76a, #06a55d);
+  box-shadow: 0 12px 22px rgba(16, 185, 129, 0.22);
+  font-weight: 900;
 }
 
 .finish-hero {
-  border: 1px solid rgba(22, 163, 74, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.22);
   background: linear-gradient(135deg, #f0fdf4, #ffffff);
 }
 
 .open-codex-button {
-  min-width: 220px;
-  min-height: 58px;
-  box-shadow: 0 14px 28px rgba(22, 163, 74, 0.24);
+  min-width: 240px;
+  min-height: 60px;
 }
 
 .tool-card {
-  min-height: 150px;
-  border: 1px solid #d7e0ec;
-  background: #ffffff;
+  min-height: 164px;
+  border: 1px solid #dce5f2;
+  background: linear-gradient(135deg, #ffffff, #f8fbff);
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .tool-card.selected {
-  border-color: #2563eb;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+  border-color: #5b7cfa;
+  box-shadow: inset 0 0 0 1px rgba(91, 124, 250, 0.18), 0 16px 30px rgba(79, 70, 229, 0.08);
 }
 
 .tool-card.disabled {
   background: #f8fafc;
+}
+
+.tool-icon,
+.provider-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 54px;
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  color: #ffffff;
+  background: linear-gradient(145deg, #2f6df6, #7c3aed);
+  box-shadow: 0 12px 24px rgba(79, 70, 229, 0.2);
+  font-weight: 950;
+}
+
+.tool-icon.muted {
+  background: linear-gradient(145deg, #7c8aa0, #566273);
+}
+
+.tool-copy {
+  min-width: 0;
+  flex: 1;
 }
 
 .provider-panel,
@@ -165,37 +234,99 @@ body {
   appearance: none;
   font: inherit;
   width: 100%;
-  min-height: 94px;
-  padding: 14px;
-  border: 1px solid #d7e0ec;
+  min-height: 142px;
+  padding: 16px;
+  border: 1px solid #dce5f2;
   border-radius: 8px;
   color: #172033;
-  background: #f8fafc;
+  background: linear-gradient(135deg, #ffffff, #f8fbff);
   text-align: left;
   cursor: pointer;
-  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
 .provider-card:hover {
-  border-color: #8bb5f8;
+  border-color: #9dbbff;
+  transform: translateY(-1px);
 }
 
 .provider-card.selected {
-  border-color: #2563eb;
-  background: #eef6ff;
-  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+  border-color: #5b7cfa;
+  background: linear-gradient(135deg, #f7faff, #ffffff);
+  box-shadow: inset 0 0 0 1px rgba(91, 124, 250, 0.18), 0 14px 26px rgba(79, 70, 229, 0.08);
+}
+
+.provider-card .provider-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 12px;
+  border-radius: 10px;
 }
 
 .tutorial-panel {
-  background: linear-gradient(135deg, #ffffff, #fff8ed);
+  background: linear-gradient(135deg, #ffffff, #f7fbff);
 }
 
-@media (max-width: 680px) {
+.tutorial-hero {
+  min-height: 152px;
+  border: 1px solid rgba(91, 124, 250, 0.16);
+  border-radius: 8px;
+  padding: 22px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(237, 242, 255, 0.88));
+}
+
+.tutorial-item,
+.support-card {
+  border: 1px solid rgba(135, 154, 185, 0.18);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.tutorial-item b,
+.tutorial-item span {
+  display: block;
+}
+
+.tutorial-item span {
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.support-card {
+  background: linear-gradient(135deg, #f7f2ff, #ffffff);
+}
+
+@media (max-width: 760px) {
   .steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .step {
     justify-content: flex-start;
+  }
+
+  .brand-mark {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+  }
+
+  .hero-badges {
+    width: 100%;
+  }
+
+  .guide-card .mantine-Group-root {
+    flex-wrap: wrap;
+  }
+
+  .guide-next-button {
+    width: 100%;
+  }
+
+  .open-codex-button {
+    width: 100%;
   }
 }

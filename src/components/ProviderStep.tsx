@@ -184,16 +184,16 @@ export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
           <Text className="eyebrow">第 3 步</Text>
           <Title order={2}>配置 API 供应商</Title>
           <Text c="dimmed" mt={6}>
-            新手默认选择 SY API。选择供应商后会自动填写地址和协议，你只需要粘贴 Key。
+            新手默认选择 SY API。选择供应商后会自动填写 Base URL、协议和推荐模型，你只需要粘贴 Key。
           </Text>
         </div>
 
-        <Alert color="orange" variant="light">
-          SY API 是 2 折 GPT 模型聚合入口：
+        <Alert color="blue" variant="light">
+          SY API 是 2 折 GPT 模型聚合入口。
           <Anchor href={SY_API_SITE_URL} target="_blank" rel="noreferrer" ml={4}>
             www.syapi.com
           </Anchor>
-          。充值后创建令牌，把 Key 粘贴到这里。
+          ：充值后创建令牌，把 Key 粘贴到这里。
         </Alert>
 
         <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="sm">
@@ -204,6 +204,7 @@ export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
               className={preset.id === form.providerPresetId ? "provider-card selected" : "provider-card"}
               onClick={() => selectPreset(preset.id)}
             >
+              <span className="provider-icon">{preset.name.slice(0, 1)}</span>
               <Text fw={900}>{preset.name}</Text>
               <Text size="sm" c="dimmed" mt={4}>
                 {preset.description}
@@ -236,7 +237,7 @@ export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
 
         <PasswordInput
           label="API Key"
-          description="这里只保存在本机 Codex 配置中，不会显示完整 Key。"
+          description="这里只保存到本机 Codex 配置中，不会显示完整 Key。"
           value={form.apiKey}
           onChange={(event) => updateForm({ apiKey: event.currentTarget.value })}
           placeholder="粘贴你创建的 API Key"
@@ -244,7 +245,7 @@ export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
 
         <Select
           label="默认模型"
-          description="点击一键获取上游模型后，可从供应商返回的模型列表中选择。"
+          description="点击一键获取上游模型后，可以从供应商返回的模型列表中选择。"
           value={form.selectedModel || selectedPreset.defaultModel || DEFAULT_PROVIDER_MODEL}
           onChange={(value) => updateForm({ selectedModel: value || selectedPreset.defaultModel })}
           data={modelOptions}
@@ -255,16 +256,16 @@ export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
         <Alert color="gray" variant="light">{modelStatus}</Alert>
 
         <Group>
-          <Button variant="light" onClick={loadModels} loading={isLoadingModels}>
+          <Button className="primary-action" onClick={loadModels} loading={isLoadingModels}>
             一键获取上游模型
           </Button>
-          <Button color="green" onClick={saveProviderConfig}>
+          <Button className="success-action" onClick={saveProviderConfig}>
             保存 API 配置
           </Button>
         </Group>
 
-        <Alert color="blue" variant="light">
-          自动识别配置写入位置：Windows 写入 %USERPROFILE%\.codex，Mac 写入 ~/.codex。
+        <Alert color="green" variant="light">
+          自动识别配置写入位置：Windows 写入 %USERPROFILE%\.codex；Mac 写入 ~/.codex。
         </Alert>
 
         <Text c="dimmed">{status}</Text>
