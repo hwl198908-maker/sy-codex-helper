@@ -1,12 +1,12 @@
 {
   "version": "0.2.4",
   "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_x64-setup.exe",
-  "sha256": "64302360e30a64d160af2c7487e01bb634b4b7e194094158e83e07138e1e9778",
+  "sha256": "34dd193b53345ccfef118b1e2c969e99fe0e9a170858adcd9190a63526f64f45",
   "notes": "\u5b89\u88c5\u9875\u652f\u6301 Windows \u548c macOS Apple Silicon \u81ea\u52a8\u8bc6\u522b\uff1aWindows \u4f7f\u7528 x64 setup\uff0cMac \u4f7f\u7528 aarch64 DMG\uff1bAPI \u914d\u7f6e\u7ee7\u7eed\u6309\u7cfb\u7edf\u5199\u5165 .codex\u3002",
   "downloads": {
     "windows-x64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_x64-setup.exe",
-      "sha256": "64302360e30a64d160af2c7487e01bb634b4b7e194094158e83e07138e1e9778"
+      "sha256": "34dd193b53345ccfef118b1e2c969e99fe0e9a170858adcd9190a63526f64f45"
     }
   }
 }

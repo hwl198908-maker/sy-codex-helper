@@ -93,7 +93,7 @@ https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_x64-setup.exe
 SHA256：
 
 ```text
-64302360e30a64d160af2c7487e01bb634b4b7e194094158e83e07138e1e9778
+34dd193b53345ccfef118b1e2c969e99fe0e9a170858adcd9190a63526f64f45
 ```
 
 在线更新清单：
