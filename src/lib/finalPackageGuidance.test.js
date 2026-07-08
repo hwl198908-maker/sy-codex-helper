@@ -18,7 +18,7 @@ describe("final package guidance", () => {
     const app = readProjectFile("src/App.tsx");
     const defaults = readProjectFile("src/lib/defaults.ts");
 
-    expect(defaults).toContain("https://www.syapi.com/v1");
+    expect(defaults).toContain("https://www.syapi.vip/v1");
     expect(defaults).toContain("gpt-5.5");
     expect(app).toContain("SY Codex（聚合安装）");
     expect(app).toContain("中文增强");

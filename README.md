@@ -50,12 +50,12 @@ https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_x64-setup.exe
 默认供应商：
 
 ```text
-https://www.syapi.com/v1
+https://www.syapi.vip/v1
 ```
 
 使用步骤：
 
-1. 打开 `www.syapi.com`。
+1. 打开 `www.syapi.vip`。
 2. 登录后充值。
 3. 创建 API 令牌。
 4. 回到 SY Codex 粘贴 Key。
@@ -70,19 +70,19 @@ https://www.syapi.com/v1
 当前版本：
 
 ```text
-0.2.2
+0.2.3
 ```
 
 安装包：
 
 ```text
-https://www.syapi.vip/codex-manager/SY-Codex_0.2.2_x64-setup.exe
+https://www.syapi.vip/codex-manager/SY-Codex_0.2.3_x64-setup.exe
 ```
 
 SHA256：
 
 ```text
-f7ea7dc07e6453f78f4f3450a8311f94b89f2b49f5240531fa2df63b0f6fbb54
+aee49cac8655129da76cd8eff434341e9f1a085aa9d9f748ecee26e17c8ee22a
 ```
 
 在线更新清单：

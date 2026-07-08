@@ -191,7 +191,7 @@ export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
         <Alert color="blue" variant="light">
           SY API 是 2 折 GPT 模型聚合入口。
           <Anchor href={SY_API_SITE_URL} target="_blank" rel="noreferrer" ml={4}>
-            www.syapi.com
+            www.syapi.vip
           </Anchor>
           ：充值后创建令牌，把 Key 粘贴到这里。
         </Alert>
@@ -219,7 +219,7 @@ export function ProviderStep({ form, onFormChange }: ProviderStepProps) {
             description={selectedPreset.editable ? "自定义供应商需要填写接口地址。" : "已根据供应商自动填写。"}
             value={form.baseUrl}
             onChange={(event) => updateForm({ baseUrl: event.currentTarget.value })}
-            placeholder="https://www.syapi.com/v1"
+            placeholder="https://www.syapi.vip/v1"
             disabled={!selectedPreset.editable}
           />
 

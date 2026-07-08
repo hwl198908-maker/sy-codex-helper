@@ -182,7 +182,7 @@ export default function App() {
                       </Text>
                     </div>
                     <Stack gap="sm">
-                      <div className="tutorial-item"><b>1 打开网站</b><span>进入 www.syapi.com，登录后跳转充值页面。</span></div>
+                      <div className="tutorial-item"><b>1 打开网站</b><span>进入 www.syapi.vip，登录后跳转充值页面。</span></div>
                       <div className="tutorial-item"><b>2 充值并创建令牌</b><span>充值后在后台创建 API 令牌，复制生成的 Key。</span></div>
                       <div className="tutorial-item"><b>3 回到软件填写</b><span>粘贴 Key，点击“一键获取上游模型”，选择模型后保存。</span></div>
                       <div className="tutorial-item"><b>4 自动识别系统</b><span>Windows 写入 %USERPROFILE%\.codex；Mac 写入 ~/.codex。</span></div>

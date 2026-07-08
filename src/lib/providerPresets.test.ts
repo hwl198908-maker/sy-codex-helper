@@ -12,7 +12,7 @@ describe("provider presets", () => {
   it("uses SY API as the beginner default", () => {
     const preset = getProviderPreset("sy_api");
 
-    expect(preset.baseUrl).toBe("https://www.syapi.com/v1");
+    expect(preset.baseUrl).toBe("https://www.syapi.vip/v1");
     expect(preset.protocol).toBe("responses");
     expect(preset.defaultModel).toBe("gpt-5.5");
   });

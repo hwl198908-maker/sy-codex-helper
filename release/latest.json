@@ -1,6 +1,6 @@
 {
-  "version": "0.2.2",
-  "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.2_x64-setup.exe",
-  "sha256": "f7ea7dc07e6453f78f4f3450a8311f94b89f2b49f5240531fa2df63b0f6fbb54",
-  "notes": "\u4fdd\u7559\u5206\u6b65\u5411\u5bfc\u6d41\u7a0b\uff0c\u754c\u9762\u5347\u7ea7\u4e3a\u66f4\u6e05\u6670\u7684 SY Codex \u805a\u5408\u5b89\u88c5\u98ce\u683c\uff0c\u4fdd\u7559 API \u4f9b\u5e94\u5546\u9009\u62e9\u3001\u4e00\u952e\u83b7\u53d6\u4e0a\u6e38\u6a21\u578b\u548c SY API \u6559\u7a0b\u3002"
+  "version": "0.2.3",
+  "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.3_x64-setup.exe",
+  "sha256": "aee49cac8655129da76cd8eff434341e9f1a085aa9d9f748ecee26e17c8ee22a",
+  "notes": "\u4fee\u6b63 SY API \u7f51\u7ad9\u548c Base URL\uff1a\u7f51\u7ad9\u4f7f\u7528 www.syapi.vip\uff0cAPI \u5730\u5740\u4f7f\u7528 https://www.syapi.vip/v1\u3002"
 }

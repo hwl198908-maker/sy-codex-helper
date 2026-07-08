@@ -163,7 +163,7 @@ export function CompleteStep({ providerForm }: CompleteStepProps) {
           <Text fw={700}>SY API 配置教程</Text>
           <List mt="sm" spacing="xs" icon={<ThemeIcon color="blue" size={20} radius="xl">✓</ThemeIcon>}>
             <List.Item>
-              打开 <Anchor href={SY_API_SITE_URL} target="_blank" rel="noreferrer">www.syapi.com</Anchor>。
+              打开 <Anchor href={SY_API_SITE_URL} target="_blank" rel="noreferrer">www.syapi.vip</Anchor>。
             </List.Item>
             <List.Item>充值后创建令牌，把令牌复制到“配置 API”的 API Key。</List.Item>
             <List.Item>点击“一键获取上游模型”，选择模型后保存配置。</List.Item>
