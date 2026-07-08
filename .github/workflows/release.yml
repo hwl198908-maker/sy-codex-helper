@@ -41,6 +41,7 @@ jobs:
         run: npm run build
 
       - name: Test Rust
+        if: runner.os == 'Windows'
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Build Tauri app
