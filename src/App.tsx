@@ -181,12 +181,29 @@ export default function App() {
                         2 折 GPT 模型聚合入口，适合国内用户快速配置 Codex 代理 API。
                       </Text>
                     </div>
-                    <Stack gap="sm">
-                      <div className="tutorial-item"><b>1 打开网站</b><span>进入 www.syapi.vip，登录后跳转充值页面。</span></div>
-                      <div className="tutorial-item"><b>2 充值并创建令牌</b><span>充值后在后台创建 API 令牌，复制生成的 Key。</span></div>
-                      <div className="tutorial-item"><b>3 回到软件填写</b><span>粘贴 Key，点击“一键获取上游模型”，选择模型后保存。</span></div>
-                      <div className="tutorial-item"><b>4 自动识别系统</b><span>Windows 写入 %USERPROFILE%\.codex；Mac 写入 ~/.codex。</span></div>
+                    <Stack gap="sm" className="tutorial-steps">
+                      <div className="tutorial-step">
+                        <span className="tutorial-step-number">1</span>
+                        <div><b>打开网站</b><span>进入 www.syapi.vip，登录后到充值页面。</span></div>
+                      </div>
+                      <div className="tutorial-step">
+                        <span className="tutorial-step-number">2</span>
+                        <div><b>创建令牌</b><span>充值后在后台创建 API 令牌，复制生成的 Key。</span></div>
+                      </div>
+                      <div className="tutorial-step">
+                        <span className="tutorial-step-number">3</span>
+                        <div><b>回到软件填写</b><span>粘贴 Key，点击“一键获取上游模型”。</span></div>
+                      </div>
+                      <div className="tutorial-step">
+                        <span className="tutorial-step-number">4</span>
+                        <div><b>保存并打开 Codex</b><span>选择模型后保存配置，再打开 Codex 桌面 App。</span></div>
+                      </div>
                     </Stack>
+                    <Paper className="write-path-card" radius="md" p="md">
+                      <Text fw={800}>自动写入位置</Text>
+                      <Text size="sm" c="dimmed" mt={4}>Windows：%USERPROFILE%\.codex</Text>
+                      <Text size="sm" c="dimmed">Mac：~/.codex</Text>
+                    </Paper>
                     <Paper className="support-card" radius="md" p="md">
                       <Text fw={800}>客服联系方式</Text>
                       <Text c="dimmed" mt={4}>weixxxnb</Text>

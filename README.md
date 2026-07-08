@@ -82,7 +82,7 @@ https://www.syapi.vip/codex-manager/SY-Codex_0.2.3_x64-setup.exe
 SHA256：
 
 ```text
-aee49cac8655129da76cd8eff434341e9f1a085aa9d9f748ecee26e17c8ee22a
+42fa2939f7426505b3a34768ca58556d5f2bf416be042e152a30129f470c821d
 ```
 
 在线更新清单：

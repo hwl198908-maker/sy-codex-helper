@@ -1,6 +1,6 @@
 {
   "version": "0.2.3",
   "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.3_x64-setup.exe",
-  "sha256": "aee49cac8655129da76cd8eff434341e9f1a085aa9d9f748ecee26e17c8ee22a",
-  "notes": "\u4fee\u6b63 SY API \u7f51\u7ad9\u548c Base URL\uff1a\u7f51\u7ad9\u4f7f\u7528 www.syapi.vip\uff0cAPI \u5730\u5740\u4f7f\u7528 https://www.syapi.vip/v1\u3002"
+  "sha256": "42fa2939f7426505b3a34768ca58556d5f2bf416be042e152a30129f470c821d",
+  "notes": "\u4fee\u6b63 SY API \u7f51\u7ad9\u548c Base URL\uff1a\u7f51\u7ad9\u4f7f\u7528 www.syapi.vip\uff0cAPI \u5730\u5740\u4f7f\u7528 https://www.syapi.vip/v1\u3002\u65b0\u624b\u6559\u7a0b\u6539\u4e3a API \u914d\u7f6e\u9875\u53f3\u4fa7\u56fa\u5b9a\u680f\uff0c\u6b65\u9aa4\u66f4\u6e05\u6670\u3002"
 }
