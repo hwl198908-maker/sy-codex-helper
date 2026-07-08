@@ -23,13 +23,17 @@ SY Codex 是面向新手的一键安装和配置工具，帮助用户完成 Code
 
 ## 默认下载线路
 
-Codex 安装页继续使用原来的默认线路，避免用户下载到旧地址：
+Codex 安装页会自动识别系统，并填入对应默认线路：
 
 ```text
+Windows x64:
 https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_x64-setup.exe
+
+macOS Apple Silicon:
+https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_aarch64.dmg
 ```
 
-如果使用清单格式，Windows 包字段保持如下结构：
+如果使用清单格式，字段保持如下结构：
 
 ```json
 {
@@ -39,6 +43,13 @@ https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_x64-setup.exe
       "version": "0.142.5",
       "platform": "windows-x64",
       "packageUrl": "https://example.com/CodexAppManager_x64-setup.exe",
+      "checksumSha256": "..."
+    },
+    {
+      "toolId": "codex",
+      "version": "0.142.5",
+      "platform": "macos-arm64",
+      "packageUrl": "https://example.com/CodexAppManager_aarch64.dmg",
       "checksumSha256": "..."
     }
   ]
@@ -70,19 +81,19 @@ https://www.syapi.vip/v1
 当前版本：
 
 ```text
-0.2.3
+0.2.4
 ```
 
 安装包：
 
 ```text
-https://www.syapi.vip/codex-manager/SY-Codex_0.2.3_x64-setup.exe
+https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_x64-setup.exe
 ```
 
 SHA256：
 
 ```text
-42fa2939f7426505b3a34768ca58556d5f2bf416be042e152a30129f470c821d
+64302360e30a64d160af2c7487e01bb634b4b7e194094158e83e07138e1e9778
 ```
 
 在线更新清单：

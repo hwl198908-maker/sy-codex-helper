@@ -1,6 +1,12 @@
 {
-  "version": "0.2.3",
-  "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.3_x64-setup.exe",
-  "sha256": "42fa2939f7426505b3a34768ca58556d5f2bf416be042e152a30129f470c821d",
-  "notes": "\u4fee\u6b63 SY API \u7f51\u7ad9\u548c Base URL\uff1a\u7f51\u7ad9\u4f7f\u7528 www.syapi.vip\uff0cAPI \u5730\u5740\u4f7f\u7528 https://www.syapi.vip/v1\u3002\u65b0\u624b\u6559\u7a0b\u6539\u4e3a API \u914d\u7f6e\u9875\u53f3\u4fa7\u56fa\u5b9a\u680f\uff0c\u6b65\u9aa4\u66f4\u6e05\u6670\u3002"
+  "version": "0.2.4",
+  "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_x64-setup.exe",
+  "sha256": "64302360e30a64d160af2c7487e01bb634b4b7e194094158e83e07138e1e9778",
+  "notes": "\u5b89\u88c5\u9875\u652f\u6301 Windows \u548c macOS Apple Silicon \u81ea\u52a8\u8bc6\u522b\uff1aWindows \u4f7f\u7528 x64 setup\uff0cMac \u4f7f\u7528 aarch64 DMG\uff1bAPI \u914d\u7f6e\u7ee7\u7eed\u6309\u7cfb\u7edf\u5199\u5165 .codex\u3002",
+  "downloads": {
+    "windows-x64": {
+      "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.4_x64-setup.exe",
+      "sha256": "64302360e30a64d160af2c7487e01bb634b4b7e194094158e83e07138e1e9778"
+    }
+  }
 }

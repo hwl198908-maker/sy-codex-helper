@@ -35,11 +35,37 @@ pub struct MirrorToolPackage {
     pub release_notes: Option<String>,
 }
 
+pub fn current_codex_platform() -> &'static str {
+    #[cfg(target_os = "windows")]
+    {
+        return "windows-x64";
+    }
+
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        return "macos-arm64";
+    }
+
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    {
+        return "macos-x64";
+    }
+
+    #[cfg(not(any(
+        target_os = "windows",
+        all(target_os = "macos", target_arch = "aarch64"),
+        all(target_os = "macos", target_arch = "x86_64")
+    )))]
+    {
+        "windows-x64"
+    }
+}
+
 pub fn select_codex_windows_package(manifest: &MirrorManifest) -> Option<&MirrorToolPackage> {
     manifest
         .tools
         .iter()
-        .find(|tool| tool.tool_id == "codex" && tool.platform == "windows-x64")
+        .find(|tool| tool.tool_id == "codex" && tool.platform == current_codex_platform())
 }
 
 #[tauri::command]
@@ -342,7 +368,7 @@ fn local_package(path: &Path) -> Result<MirrorToolPackage, String> {
     Ok(MirrorToolPackage {
         tool_id: "codex".to_string(),
         version: "local".to_string(),
-        platform: "windows-x64".to_string(),
+        platform: package_platform_from_path(path).to_string(),
         package_url,
         checksum_sha256: "local-file".to_string(),
         release_notes: Some("本地默认安装包".to_string()),
@@ -384,7 +410,7 @@ fn direct_package_manifest(base_url: &str) -> Result<Option<MirrorManifest>, Str
         tools: vec![MirrorToolPackage {
             tool_id: "codex".to_string(),
             version: "latest".to_string(),
-            platform: "windows-x64".to_string(),
+            platform: direct_package_platform(trimmed).to_string(),
             package_url: trimmed.to_string(),
             checksum_sha256: "mirror-direct".to_string(),
             release_notes: Some("Codex App 镜像最新 Windows 包".to_string()),
@@ -398,6 +424,8 @@ fn is_direct_package_url(value: &str) -> bool {
         || lower.ends_with(".msix")
         || lower.ends_with(".msixbundle")
         || lower.ends_with(".zip")
+        || lower.ends_with(".dmg")
+        || lower.ends_with(".pkg")
         || lower == "https://codexapp.agentsmirror.com/latest/win"
 }
 
@@ -409,7 +437,26 @@ fn is_supported_install_package(path: &Path) -> bool {
                 || extension.eq_ignore_ascii_case("msix")
                 || extension.eq_ignore_ascii_case("msixbundle")
                 || extension.eq_ignore_ascii_case("zip")
+                || extension.eq_ignore_ascii_case("dmg")
+                || extension.eq_ignore_ascii_case("pkg")
         })
+}
+
+fn direct_package_platform(value: &str) -> &'static str {
+    let lower = value.to_ascii_lowercase();
+    if lower.ends_with(".dmg") || lower.ends_with(".pkg") {
+        if lower.contains("x64") || lower.contains("x86_64") || lower.contains("intel") {
+            return "macos-x64";
+        }
+        return "macos-arm64";
+    }
+    "windows-x64"
+}
+
+fn package_platform_from_path(path: &Path) -> &'static str {
+    path.to_str()
+        .map(direct_package_platform)
+        .unwrap_or_else(current_codex_platform)
 }
 
 fn open_installer(package: &MirrorToolPackage, path: &std::path::Path) -> Result<(), String> {
@@ -420,6 +467,24 @@ fn open_installer(package: &MirrorToolPackage, path: &std::path::Path) -> Result
             .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
     {
         return install_zip_package(path);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|err| format!("打开安装程序失败：{err}"))?;
+        return Ok(());
+    }
+
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|err| format!("打开安装程序失败：{err}"))?;
+        return Ok(());
     }
 
     Command::new("cmd")
@@ -803,6 +868,27 @@ mod tests {
 
         assert_eq!(package.package_url, "https://mirror.test/codex-clean.zip");
         assert_eq!(download_file_name(package), "codex-clean.zip");
+    }
+
+    #[test]
+    fn treats_aarch64_dmg_as_macos_arm64_package() {
+        let manifest = direct_package_manifest(
+            "https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_aarch64.dmg",
+        )
+        .expect("direct package")
+        .expect("manifest");
+        let package = manifest.tools.first().expect("codex package");
+
+        assert_eq!(package.tool_id, "codex");
+        assert_eq!(package.platform, "macos-arm64");
+        assert_eq!(
+            package.package_url,
+            "https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_aarch64.dmg"
+        );
+        assert_eq!(
+            download_file_name(package),
+            "CodexAppManager_aarch64.dmg"
+        );
     }
 
     #[test]

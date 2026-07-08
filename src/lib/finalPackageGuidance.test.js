@@ -4,13 +4,15 @@ import { describe, expect, it } from "vitest";
 const readProjectFile = (path) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
 
 describe("final package guidance", () => {
-  it("provides a default mirror address for the install step", () => {
+  it("provides Windows and Mac default mirror addresses for the install step", () => {
     const installStep = readProjectFile("src/components/InstallStep.tsx");
     const defaults = readProjectFile("src/lib/defaults.ts");
 
     expect(defaults).toContain("DEFAULT_MIRROR_BASE_URL");
     expect(defaults).toContain("https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_x64-setup.exe");
-    expect(installStep).toContain("DEFAULT_MIRROR_BASE_URL");
+    expect(defaults).toContain("https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_aarch64.dmg");
+    expect(installStep).toContain("DEFAULT_MACOS_ARM64_MIRROR_BASE_URL");
+    expect(installStep).toContain("macOS · Apple Silicon");
     expect(installStep).not.toContain('const [mirrorBaseUrl, setMirrorBaseUrl] = useState("");');
   });
 
@@ -22,7 +24,7 @@ describe("final package guidance", () => {
     expect(defaults).toContain("gpt-5.5");
     expect(app).toContain("SY Codex（聚合安装）");
     expect(app).toContain("中文增强");
-    expect(app).toContain("意见反馈");
+    expect(app).toContain("反馈更新");
     expect(app).toContain("guide-next-button");
     expect(app).not.toContain("footer-actions");
     expect(app).toContain("ProviderFormState");
@@ -43,10 +45,11 @@ describe("final package guidance", () => {
     expect(tauriConfig).toContain('"resizable": false');
   });
 
-  it("documents the supported Windows mirror manifest shape", () => {
+  it("documents the supported mirror manifest shape", () => {
     const readme = readProjectFile("README.md");
 
     expect(readme).toContain('"platform": "windows-x64"');
+    expect(readme).toContain('"platform": "macos-arm64"');
     expect(readme).toContain('"checksumSha256"');
     expect(readme).not.toContain('"platform": "windows"');
     expect(readme).not.toContain('"arch": "x64"');

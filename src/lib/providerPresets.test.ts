@@ -1,12 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MIRROR_BASE_URL } from "./defaults";
+import {
+  DEFAULT_MACOS_ARM64_MIRROR_BASE_URL,
+  DEFAULT_MIRROR_BASE_URL,
+  DEFAULT_WINDOWS_MIRROR_BASE_URL
+} from "./defaults";
 import { getProviderPreset, PROVIDER_PRESETS } from "./providerPresets";
 
 describe("provider presets", () => {
   it("keeps the Codex download URL unchanged", () => {
-    expect(DEFAULT_MIRROR_BASE_URL).toBe(
+    expect(DEFAULT_WINDOWS_MIRROR_BASE_URL).toBe(
       "https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_x64-setup.exe"
     );
+    expect(DEFAULT_MACOS_ARM64_MIRROR_BASE_URL).toBe(
+      "https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_aarch64.dmg"
+    );
+    expect(DEFAULT_MIRROR_BASE_URL).toBe(DEFAULT_WINDOWS_MIRROR_BASE_URL);
   });
 
   it("uses SY API as the beginner default", () => {

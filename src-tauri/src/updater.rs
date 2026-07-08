@@ -1,4 +1,5 @@
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -13,6 +14,14 @@ pub struct UpdateManifest {
     pub download_url: String,
     pub sha256: Option<String>,
     pub notes: Option<String>,
+    pub downloads: Option<HashMap<String, UpdateDownload>>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateDownload {
+    pub download_url: String,
+    pub sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
@@ -52,9 +61,24 @@ pub fn check_update(manifest_url: String) -> Result<UpdateManifest, String> {
         return Err(format!("更新服务器返回异常状态：{}", response.status()));
     }
 
-    response
+    let manifest = response
         .json::<UpdateManifest>()
-        .map_err(|err| format!("更新清单格式无效：{err}"))
+        .map_err(|err| format!("更新清单格式无效：{err}"))?;
+    Ok(select_platform_download(manifest))
+}
+
+fn select_platform_download(mut manifest: UpdateManifest) -> UpdateManifest {
+    let Some(downloads) = &manifest.downloads else {
+        return manifest;
+    };
+
+    let platform = crate::installer::current_codex_platform();
+    if let Some(download) = downloads.get(platform) {
+        manifest.download_url = download.download_url.clone();
+        manifest.sha256 = download.sha256.clone();
+    }
+
+    manifest
 }
 
 #[tauri::command]
@@ -63,9 +87,9 @@ pub fn download_and_install_update(
     manifest: UpdateManifest,
 ) -> Result<UpdateInstallResult, String> {
     let parsed = reqwest::Url::parse(manifest.download_url.trim())
-        .map_err(|_| "新版下载地址无效，请检查更新清单。".to_string())?;
+        .map_err(|_| "新版本下载地址无效，请检查更新清单。".to_string())?;
     if !matches!(parsed.scheme(), "http" | "https") || parsed.host_str().is_none() {
-        return Err("新版下载地址无效，请使用完整的 http(s) 地址。".to_string());
+        return Err("新版本下载地址无效，请使用完整的 http(s) 地址。".to_string());
     }
 
     let cache_dir = app
@@ -88,7 +112,7 @@ pub fn download_and_install_update(
     let partial_path = target_path.with_extension("download");
     download_update_file(&app, parsed, &partial_path)?;
     verify_cached_update(&partial_path, manifest.sha256.as_deref())?;
-    fs::rename(&partial_path, &target_path).map_err(|err| format!("保存新版安装包失败：{err}"))?;
+    fs::rename(&partial_path, &target_path).map_err(|err| format!("保存新版本安装包失败：{err}"))?;
     launch_installer(&target_path)?;
 
     Ok(UpdateInstallResult {
@@ -110,10 +134,10 @@ fn download_update_file(
     let mut response = client
         .get(url)
         .send()
-        .map_err(|err| format!("无法下载新版安装包：{err}"))?;
+        .map_err(|err| format!("无法下载新版本安装包：{err}"))?;
 
     if !response.status().is_success() {
-        return Err(format!("新版下载服务器返回异常状态：{}", response.status()));
+        return Err(format!("新版本下载服务器返回异常状态：{}", response.status()));
     }
 
     let total = response.content_length();
@@ -124,18 +148,18 @@ fn download_update_file(
     loop {
         let read = response
             .read(&mut buffer)
-            .map_err(|err| format!("读取新版安装包失败：{err}"))?;
+            .map_err(|err| format!("读取新版本安装包失败：{err}"))?;
         if read == 0 {
             break;
         }
         file.write_all(&buffer[..read])
-            .map_err(|err| format!("写入新版安装包失败：{err}"))?;
+            .map_err(|err| format!("写入新版本安装包失败：{err}"))?;
         downloaded += read as u64;
         emit_download_progress(app, downloaded, total);
     }
 
     file.flush()
-        .map_err(|err| format!("保存新版安装包失败：{err}"))?;
+        .map_err(|err| format!("保存新版本安装包失败：{err}"))?;
     emit_download_progress(app, downloaded, total);
     Ok(())
 }
@@ -155,10 +179,22 @@ fn emit_download_progress(app: &AppHandle, downloaded: u64, total: Option<u64>) 
 }
 
 fn launch_installer(path: &Path) -> Result<(), String> {
-    Command::new(path)
-        .spawn()
-        .map_err(|err| format!("启动新版安装包失败：{err}"))?;
-    Ok(())
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|err| format!("启动新版本安装包失败：{err}"))?;
+        return Ok(());
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Command::new(path)
+            .spawn()
+            .map_err(|err| format!("启动新版本安装包失败：{err}"))?;
+        Ok(())
+    }
 }
 
 fn verify_cached_update(path: &Path, expected_sha256: Option<&str>) -> Result<bool, String> {
@@ -171,14 +207,14 @@ fn verify_cached_update(path: &Path, expected_sha256: Option<&str>) -> Result<bo
 }
 
 fn file_sha256(path: &Path) -> Result<String, String> {
-    let mut file = fs::File::open(path).map_err(|err| format!("读取新版安装包失败：{err}"))?;
+    let mut file = fs::File::open(path).map_err(|err| format!("读取新版本安装包失败：{err}"))?;
     let mut hasher = Sha256::new();
     let mut buffer = [0_u8; 64 * 1024];
 
     loop {
         let read = file
             .read(&mut buffer)
-            .map_err(|err| format!("校验新版安装包失败：{err}"))?;
+            .map_err(|err| format!("校验新版本安装包失败：{err}"))?;
         if read == 0 {
             break;
         }
@@ -200,7 +236,19 @@ fn update_cache_file_name(manifest: &UpdateManifest) -> String {
             }
         })
         .collect();
-    format!("SY-Codex_{safe_version}_x64-setup.exe")
+    let extension = reqwest::Url::parse(&manifest.download_url)
+        .ok()
+        .and_then(|url| {
+            url.path_segments()
+                .and_then(|mut segments| segments.next_back().map(str::to_string))
+        })
+        .and_then(|name| name.rsplit_once('.').map(|(_, extension)| extension.to_string()))
+        .unwrap_or_else(|| "exe".to_string());
+    format!(
+        "SY-Codex_{safe_version}_{}.{}",
+        crate::installer::current_codex_platform(),
+        extension
+    )
 }
 
 #[cfg(test)]
@@ -222,18 +270,60 @@ mod tests {
     }
 
     #[test]
+    fn parses_platform_update_downloads() {
+        let manifest: UpdateManifest = serde_json::from_str(
+            r#"{
+                "version":"0.2.4",
+                "downloadUrl":"https://example.com/SY-Codex_0.2.4_x64-setup.exe",
+                "sha256":"win",
+                "downloads":{
+                    "windows-x64":{"downloadUrl":"https://example.com/SY-Codex_0.2.4_x64-setup.exe","sha256":"win"},
+                    "macos-arm64":{"downloadUrl":"https://example.com/SY-Codex_0.2.4_aarch64.dmg","sha256":"mac"}
+                }
+            }"#,
+        )
+        .expect("manifest");
+
+        let selected = select_platform_download(manifest);
+        if crate::installer::current_codex_platform() == "macos-arm64" {
+            assert!(selected.download_url.ends_with(".dmg"));
+            assert_eq!(selected.sha256.as_deref(), Some("mac"));
+        } else {
+            assert!(selected.download_url.ends_with(".exe"));
+            assert_eq!(selected.sha256.as_deref(), Some("win"));
+        }
+    }
+
+    #[test]
     fn builds_safe_update_cache_file_name() {
         let manifest = UpdateManifest {
             version: "0.1.9 beta/1".to_string(),
             download_url: "https://example.com/app.exe".to_string(),
             sha256: None,
             notes: None,
+            downloads: None,
         };
 
         assert_eq!(
             update_cache_file_name(&manifest),
-            "SY-Codex_0.1.9_beta_1_x64-setup.exe"
+            format!(
+                "SY-Codex_0.1.9_beta_1_{}.exe",
+                crate::installer::current_codex_platform()
+            )
         );
+    }
+
+    #[test]
+    fn keeps_dmg_extension_for_update_cache_file_name() {
+        let manifest = UpdateManifest {
+            version: "0.2.4".to_string(),
+            download_url: "https://example.com/SY-Codex_0.2.4_aarch64.dmg".to_string(),
+            sha256: None,
+            notes: None,
+            downloads: None,
+        };
+
+        assert!(update_cache_file_name(&manifest).ends_with(".dmg"));
     }
 
     #[test]
