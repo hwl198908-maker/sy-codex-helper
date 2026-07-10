@@ -1,6 +1,6 @@
 [package]
 name = "codex-manager"
-version = "0.2.4"
+version = "0.2.5"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -26,6 +26,7 @@ reqwest = { version = "0.13", default-features = false, features = ["blocking", 
 keyring = "3.6.3"
 dirs = "6.0.0"
 sha2 = "0.10"
+tungstenite = { version = "0.28", default-features = false, features = ["handshake"] }
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.3", features = ["Win32_System_Com", "Win32_UI_Shell"] }

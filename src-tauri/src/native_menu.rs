@@ -1,6 +1,8 @@
-use std::{fs, process::Command, thread, time::Duration};
+use std::{net::TcpStream, thread, time::Duration};
 
-const LOCALIZATION_RETRIES: usize = 20;
+use tungstenite::{stream::MaybeTlsStream, Message, WebSocket};
+
+const LOCALIZATION_RETRIES: usize = 30;
 const LOCALIZATION_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 #[derive(serde::Deserialize)]
@@ -147,79 +149,74 @@ fn evaluate_script(
     script: &str,
     register_new_document: bool,
 ) -> Result<(), String> {
-    let script_path = std::env::temp_dir().join("sy-codex-localizer.js");
-    fs::write(&script_path, script).map_err(|err| format!("准备 Codex 汉化脚本失败: {err}"))?;
+    let (mut socket, _) = tungstenite::connect(websocket_url)
+        .map_err(|err| format!("连接 Codex 调试 WebSocket 失败: {err}"))?;
 
-    let output = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-Command",
-            POWERSHELL_CDP_EVALUATE,
-        ])
-        .env("SY_CODEX_WS_URL", websocket_url)
-        .env("SY_CODEX_SCRIPT_PATH", script_path)
-        .env(
-            "SY_CODEX_REGISTER_DOCUMENT",
-            if register_new_document { "1" } else { "0" },
-        )
-        .output()
-        .map_err(|err| format!("启动 Codex 汉化脚本失败: {err}"))?;
+    if register_new_document {
+        send_cdp_command(
+            &mut socket,
+            1,
+            "Page.addScriptToEvaluateOnNewDocument",
+            serde_json::json!({ "source": script }),
+        )?;
+    }
 
-    if output.status.success() {
+    send_cdp_command(
+        &mut socket,
+        2,
+        "Runtime.evaluate",
+        serde_json::json!({
+            "expression": script,
+            "awaitPromise": true,
+            "returnByValue": true,
+            "allowUnsafeEvalBlockedByCSP": true,
+        }),
+    )
+}
+
+fn send_cdp_command(
+    socket: &mut WebSocket<MaybeTlsStream<TcpStream>>,
+    id: u64,
+    method: &str,
+    params: serde_json::Value,
+) -> Result<(), String> {
+    let payload = serde_json::json!({
+        "id": id,
+        "method": method,
+        "params": params,
+    })
+    .to_string();
+    socket
+        .send(Message::Text(payload.into()))
+        .map_err(|err| format!("发送 Codex 汉化命令失败: {err}"))?;
+
+    for _ in 0..50 {
+        let message = socket
+            .read()
+            .map_err(|err| format!("读取 Codex 汉化响应失败: {err}"))?;
+        let Message::Text(text) = message else {
+            continue;
+        };
+        let value: serde_json::Value =
+            serde_json::from_str(&text).map_err(|err| format!("解析 Codex 汉化响应失败: {err}"))?;
+        if value.get("id").and_then(serde_json::Value::as_u64) != Some(id) {
+            continue;
+        }
+        if let Some(error) = value.get("error") {
+            return Err(format!("Codex 汉化命令返回错误: {error}"));
+        }
+        if value
+            .get("result")
+            .and_then(|result| result.get("exceptionDetails"))
+            .is_some()
+        {
+            return Err("Codex 汉化脚本执行异常。".to_string());
+        }
         return Ok(());
     }
 
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    Err(if stderr.is_empty() { stdout } else { stderr })
+    Err("等待 Codex 汉化响应超时。".to_string())
 }
-
-const POWERSHELL_CDP_EVALUATE: &str = r#"
-$ErrorActionPreference = 'Stop'
-$wsUrl = $env:SY_CODEX_WS_URL
-$scriptPath = $env:SY_CODEX_SCRIPT_PATH
-$script = [IO.File]::ReadAllText($scriptPath, [Text.Encoding]::UTF8)
-$client = [Net.WebSockets.ClientWebSocket]::new()
-$token = [Threading.CancellationToken]::None
-$client.ConnectAsync([Uri]$wsUrl, $token).GetAwaiter().GetResult()
-
-function Send-CdpCommand($id, $method, $params) {
-  $payload = @{
-    id = $id
-    method = $method
-    params = $params
-  } | ConvertTo-Json -Depth 8 -Compress
-  $bytes = [Text.Encoding]::UTF8.GetBytes($payload)
-  $client.SendAsync([ArraySegment[byte]]::new($bytes), [Net.WebSockets.WebSocketMessageType]::Text, $true, $token).GetAwaiter().GetResult()
-  for ($i = 0; $i -lt 20; $i++) {
-    $buffer = New-Object byte[] 65536
-    $segment = [ArraySegment[byte]]::new($buffer)
-    $text = ''
-    do {
-      $result = $client.ReceiveAsync($segment, $token).GetAwaiter().GetResult()
-      $text += [Text.Encoding]::UTF8.GetString($buffer, 0, $result.Count)
-    } until ($result.EndOfMessage)
-    if ($text -match ('"id"\s*:\s*' + $id)) {
-      if ($text -match '"exceptionDetails"' -or $text -match '"error"') { exit 2 }
-      return
-    }
-  }
-  exit 3
-}
-
-if ($env:SY_CODEX_REGISTER_DOCUMENT -eq '1') {
-  Send-CdpCommand 1 'Page.addScriptToEvaluateOnNewDocument' @{ source = $script }
-}
-Send-CdpCommand 2 'Runtime.evaluate' @{
-  expression = $script
-  awaitPromise = $true
-  returnByValue = $true
-  allowUnsafeEvalBlockedByCSP = $true
-}
-exit 0
-"#;
 
 pub fn native_menu_localizer_script() -> String {
     let translations = serde_json::to_string(&menu_label_translations()).unwrap_or_default();
@@ -227,7 +224,7 @@ pub fn native_menu_localizer_script() -> String {
         r#"
 (() => {{
   const translations = new Map({translations});
-  const electron = process.mainModule?.require?.("electron");
+  const electron = process.mainModule?.require?.("electron") || require?.("electron");
   if (!electron?.Menu) return JSON.stringify({{ status: "skipped" }});
   const Menu = electron.Menu;
   let changed = 0;
@@ -267,273 +264,207 @@ pub fn native_menu_localizer_script() -> String {
 }
 
 pub fn renderer_locale_localizer_script() -> String {
-    r#"
-(() => {
+    let translations = serde_json::to_string(&renderer_text_translations()).unwrap_or_default();
+    format!(
+        r#"
+(() => {{
   const locale = "zh-CN";
-  if (window.__syCodexForceChineseLocaleInstalled === "1") {
-    return JSON.stringify({ status: "already-installed", locale });
-  }
+  if (window.__syCodexForceChineseLocaleInstalled === "1") {{
+    return JSON.stringify({{ status: "already-installed", locale }});
+  }}
   window.__syCodexForceChineseLocaleInstalled = "1";
   const languages = [locale, "zh", "en-US", "en"];
 
-  const defineNavigatorGetter = (name, value) => {
-    try {
-      Object.defineProperty(Navigator.prototype, name, {
+  const defineNavigatorGetter = (name, value) => {{
+    try {{
+      Object.defineProperty(Navigator.prototype, name, {{
         configurable: true,
         get: () => value,
-      });
-    } catch {
-      try {
-        Object.defineProperty(navigator, name, {
+      }});
+    }} catch {{
+      try {{
+        Object.defineProperty(navigator, name, {{
           configurable: true,
           get: () => value,
-        });
-      } catch {}
-    }
-  };
+        }});
+      }} catch {{}}
+    }}
+  }};
 
   defineNavigatorGetter("language", locale);
   defineNavigatorGetter("languages", languages);
 
-  const patchI18nConfig = (dynamicConfig) => {
+  const patchI18nConfig = (dynamicConfig) => {{
     if (!dynamicConfig || typeof dynamicConfig !== "object") return dynamicConfig;
-    const value = dynamicConfig.value && typeof dynamicConfig.value === "object" ? dynamicConfig.value : {};
-    try {
-      dynamicConfig.value = {
+    const value = dynamicConfig.value && typeof dynamicConfig.value === "object" ? dynamicConfig.value : {{}};
+    try {{
+      dynamicConfig.value = {{
         ...value,
         enable_i18n: true,
         locale_source: "SYSTEM",
-      };
-    } catch {}
-    if (typeof dynamicConfig.get === "function" && !dynamicConfig.__syCodexForceChineseLocaleGetPatched) {
+      }};
+    }} catch {{}}
+    if (typeof dynamicConfig.get === "function" && !dynamicConfig.__syCodexForceChineseLocaleGetPatched) {{
       const originalGet = dynamicConfig.get.bind(dynamicConfig);
-      dynamicConfig.get = (key, fallback) => {
+      dynamicConfig.get = (key, fallback) => {{
         if (key === "enable_i18n") return true;
         if (key === "locale_source") return "SYSTEM";
         return originalGet(key, fallback);
-      };
+      }};
       dynamicConfig.__syCodexForceChineseLocaleGetPatched = true;
-    }
+    }}
     return dynamicConfig;
-  };
+  }};
 
-  const statsigClients = () => {
+  const statsigClients = () => {{
     const root = window.__STATSIG__ || globalThis.__STATSIG__;
     if (!root || typeof root !== "object") return [];
     const clients = [root.firstInstance, typeof root.instance === "function" ? root.instance() : null];
     if (root.instances && typeof root.instances === "object") clients.push(...Object.values(root.instances));
     return clients.filter((client, index, array) => client && typeof client === "object" && array.indexOf(client) === index);
-  };
+  }};
 
-  const patchStatsigClient = (client) => {
+  const patchStatsigClient = (client) => {{
     if (!client || typeof client !== "object" || typeof client.getDynamicConfig !== "function") return;
-    if (!client.__syCodexForceChineseLocalePatched) {
+    if (!client.__syCodexForceChineseLocalePatched) {{
       const originalGetDynamicConfig = client.getDynamicConfig.bind(client);
-      client.getDynamicConfig = (name, options) => {
+      client.getDynamicConfig = (name, options) => {{
         const result = originalGetDynamicConfig(name, options);
         return name === "72216192" ? patchI18nConfig(result) : result;
-      };
+      }};
       client.__syCodexForceChineseLocalePatched = true;
-    }
-    try {
-      patchI18nConfig(client.getDynamicConfig("72216192", { disableExposureLog: true }));
-    } catch {}
-  };
+    }}
+    try {{
+      patchI18nConfig(client.getDynamicConfig("72216192", {{ disableExposureLog: true }}));
+    }} catch {{}}
+  }};
 
-  const patchStatsigRoot = (root) => {
+  const patchStatsigRoot = (root) => {{
     if (!root || typeof root !== "object" || root.__syCodexForceChineseLocaleRootPatched) return;
     root.__syCodexForceChineseLocaleRootPatched = true;
-    ["firstInstance", "instance"].forEach((key) => {
+    ["firstInstance", "instance"].forEach((key) => {{
       let current;
-      try {
+      try {{
         current = root[key];
-      } catch {
+      }} catch {{
         return;
-      }
+      }}
       patchStatsigClient(typeof current === "function" && key === "instance" ? current.call(root) : current);
-      try {
-        Object.defineProperty(root, key, {
+      try {{
+        Object.defineProperty(root, key, {{
           configurable: true,
           get: () => current,
-          set: (next) => {
+          set: (next) => {{
             current = next;
             patchStatsigClient(typeof next === "function" && key === "instance" ? next.call(root) : next);
-          },
-        });
-      } catch {}
-    });
-  };
+          }},
+        }});
+      }} catch {{}}
+    }});
+  }};
 
-  const installStatsigRootSetter = () => {
+  const installStatsigRootSetter = () => {{
     const descriptor = Object.getOwnPropertyDescriptor(window, "__STATSIG__");
     if (descriptor && descriptor.configurable === false) return;
     let currentRoot = window.__STATSIG__;
     patchStatsigRoot(currentRoot);
-    try {
-      Object.defineProperty(window, "__STATSIG__", {
+    try {{
+      Object.defineProperty(window, "__STATSIG__", {{
         configurable: true,
         get: () => currentRoot,
-        set: (next) => {
+        set: (next) => {{
           currentRoot = next;
           patchStatsigRoot(next);
           statsigClients().forEach(patchStatsigClient);
-        },
-      });
-    } catch {}
-  };
+        }},
+      }});
+    }} catch {{}}
+  }};
 
-  const patchStatsigI18nConfig = () => {
+  const patchStatsigI18nConfig = () => {{
     installStatsigRootSetter();
     const root = window.__STATSIG__ || globalThis.__STATSIG__;
     patchStatsigRoot(root);
     statsigClients().forEach(patchStatsigClient);
-  };
+  }};
 
   patchStatsigI18nConfig();
   const startedAt = Date.now();
-  const timer = window.setInterval(() => {
+  const timer = window.setInterval(() => {{
     patchStatsigI18nConfig();
-    if (Date.now() - startedAt > 5000) window.clearInterval(timer);
-  }, 50);
+    if (Date.now() - startedAt > 8000) window.clearInterval(timer);
+  }}, 50);
 
-  const navigationTranslations = new Map([
-    ["Chats", "对话"],
-    ["Projects", "项目"],
-    ["Settings", "设置"],
-    ["Automations", "自动化"],
-    ["Skills", "技能"],
-    ["Plugins", "插件"],
-    ["Plugin", "插件"],
-    ["New chat", "新建对话"],
-    ["New Chat", "新建对话"],
-    ["Search", "搜索"],
-    ["Search chats", "搜索对话"],
-    ["Search Chats", "搜索对话"],
-    ["Search plugins", "搜索插件"],
-    ["Archived conversations", "已归档对话"],
-    ["Local Environments", "本地环境"],
-    ["Worktrees", "工作树"],
-    ["Model Context Protocol", "模型上下文协议"],
-    ["Troubleshooting", "故障排查"],
-    ["What's new", "更新内容"],
-    ["What should we get done?", "今天要完成什么？"],
-    ["Do anything", "输入你的任务"],
-    ["Install", "安装"],
-    ["Back to app", "返回应用"],
-    ["General", "通用"],
-    ["Appearance", "外观"],
-    ["Configuration", "配置"],
-    ["Personalization", "个性化"],
-    ["Pets", "宠物"],
-    ["Keyboard shortcuts", "键盘快捷键"],
-    ["Integrations", "集成"],
-    ["MCP servers", "MCP 服务器"],
-    ["Browser", "浏览器"],
-    ["Computer use", "电脑使用"],
-    ["Coding", "编码"],
-    ["Hooks", "钩子"],
-    ["Git", "Git"],
-    ["Environments", "环境"],
-    ["Archived", "归档"],
-    ["Archived chats", "已归档对话"],
-    ["Chat Settings", "聊天设置"],
-    ["Work mode", "工作模式"],
-    ["Choose how much technical detail Codex shows", "选择 Codex 显示多少技术细节"],
-    ["For coding", "用于编程"],
-    ["More technical responses and control", "更技术化的回复和控制"],
-    ["For everyday work", "用于日常工作"],
-    ["Same power, less technical detail", "同样能力，更少技术细节"],
-    ["Permissions", "权限"],
-    ["Default permissions", "默认权限"],
-    ["By default, Codex can read and edit files in its workspace. It can ask for additional access when needed", "默认情况下，Codex 可以读取和编辑工作区文件，需要时会请求额外权限"],
-    ["Full access", "完全访问"],
-    ["When Codex runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.", "开启完全访问后，Codex 可以编辑电脑上的任意文件并运行联网命令，且不再需要你的确认。这会明显增加数据丢失、泄露或异常行为的风险。"],
-    ["Learn more", "了解更多"],
-    ["Default file open destination", "默认文件打开位置"],
-    ["Where files and folders open by default", "文件和文件夹默认打开的位置"],
-    ["No targets found", "未找到目标"],
-    ["Integrated terminal shell", "集成终端 Shell"],
-    ["Choose which shell opens in the integrated terminal.", "选择集成终端默认打开的 Shell。"],
-    ["By OpenAI", "OpenAI 提供"],
-    ["By your workspace", "工作区"],
-    ["Personal", "个人"],
-    ["Creativity", "创意"],
-    ["Data & Analytics", "数据分析"],
-    ["Developer Tools", "开发工具"],
-    ["Work with Codex across your favorite tools", "让 Codex 连接你常用的工具"],
-    ["No chats", "暂无对话"],
-    ["Account", "账户"],
-    ["清理C盘瘦身", "清理 C 盘瘦身"],
-  ]);
+  const translations = new Map({translations});
 
-  const translateTextNode = (node) => {
+  const translateTextNode = (node) => {{
     const text = node.nodeValue;
     if (!text) return 0;
     const trimmed = text.trim();
-    const translated = navigationTranslations.get(trimmed);
+    const translated = translations.get(trimmed);
     if (!translated || trimmed === translated) return 0;
     node.nodeValue = text.replace(trimmed, translated);
     return 1;
-  };
+  }};
 
-  const translateAttributes = (element) => {
+  const translateAttributes = (element) => {{
     let changed = 0;
-    for (const attr of ["aria-label", "title", "placeholder", "data-app-action-sidebar-section-heading"]) {
+    for (const attr of ["aria-label", "title", "placeholder", "data-app-action-sidebar-section-heading"]) {{
       const value = element.getAttribute?.(attr);
-      const translated = value ? navigationTranslations.get(value.trim()) : null;
-      if (translated && value !== translated) {
+      const translated = value ? translations.get(value.trim()) : null;
+      if (translated && value !== translated) {{
         element.setAttribute(attr, translated);
         changed += 1;
-      }
-    }
+      }}
+    }}
     return changed;
-  };
+  }};
 
-  const translateNavigationText = (root = document.body || document.documentElement) => {
+  const translateNavigationText = (root = document.body || document.documentElement) => {{
     if (!root) return 0;
     let changed = 0;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-      acceptNode: (node) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {{
+      acceptNode: (node) => {{
         const parent = node.parentElement;
-        if (!parent || parent.closest("script,style,textarea,input,[contenteditable=true]")) {
+        if (!parent || parent.closest("script,style,textarea,input,[contenteditable=true]")) {{
           return NodeFilter.FILTER_REJECT;
-        }
-        return navigationTranslations.has((node.nodeValue || "").trim())
+        }}
+        return translations.has((node.nodeValue || "").trim())
           ? NodeFilter.FILTER_ACCEPT
           : NodeFilter.FILTER_REJECT;
-      },
-    });
+      }},
+    }});
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
-    nodes.forEach((node) => { changed += translateTextNode(node); });
+    nodes.forEach((node) => {{ changed += translateTextNode(node); }});
     root.querySelectorAll?.("[aria-label], [title], [placeholder], [data-app-action-sidebar-section-heading]")
-      .forEach((element) => { changed += translateAttributes(element); });
+      .forEach((element) => {{ changed += translateAttributes(element); }});
     window.__syCodexNavigationTranslationCount = (window.__syCodexNavigationTranslationCount || 0) + changed;
     return changed;
-  };
+  }};
 
-  const scheduleNavigationTranslation = () => {
+  const scheduleNavigationTranslation = () => {{
     window.clearTimeout(window.__syCodexNavigationTranslationTimer);
     window.__syCodexNavigationTranslationTimer = window.setTimeout(() => translateNavigationText(), 80);
-  };
+  }};
 
   translateNavigationText();
   console.info("[SY Codex] navigation translations applied", window.__syCodexNavigationTranslationCount || 0);
-  if (!window.__syCodexNavigationObserver) {
+  if (!window.__syCodexNavigationObserver) {{
     window.__syCodexNavigationObserver = new MutationObserver(scheduleNavigationTranslation);
-    window.__syCodexNavigationObserver.observe(document.documentElement, {
+    window.__syCodexNavigationObserver.observe(document.documentElement, {{
       childList: true,
       subtree: true,
       characterData: true,
       attributes: true,
       attributeFilter: ["aria-label", "title", "placeholder", "data-app-action-sidebar-section-heading"],
-    });
-  }
+    }});
+  }}
 
-  return JSON.stringify({ status: "ok", locale, navigationFallback: true });
-})()
+  return JSON.stringify({{ status: "ok", locale, navigationFallback: true }});
+}})()
 "#
-    .to_string()
+    )
 }
 
 fn menu_label_translations() -> Vec<(&'static str, &'static str)> {
@@ -553,10 +484,12 @@ fn menu_label_translations() -> Vec<(&'static str, &'static str)> {
         ("New Window", "新建窗口"),
         ("New Chat", "新建对话"),
         ("Quick Chat", "快速对话"),
+        ("Settings...", "设置..."),
         ("Settings…", "设置..."),
         ("Keyboard Shortcuts", "键盘快捷键"),
+        ("Open Folder...", "打开文件夹..."),
         ("Open Folder…", "打开文件夹..."),
-        ("Toggle Sidebar", "切换边栏"),
+        ("Toggle Sidebar", "切换侧边栏"),
         ("Open Terminal", "打开终端"),
         ("Find", "查找"),
         ("Back", "后退"),
@@ -576,8 +509,87 @@ fn menu_label_translations() -> Vec<(&'static str, &'static str)> {
         ("Model Context Protocol", "模型上下文协议"),
         ("Troubleshooting", "故障排查"),
         ("Send Feedback", "发送反馈"),
+        ("Check for Updates...", "检查更新..."),
         ("Check for Updates…", "检查更新..."),
         ("Updates Unavailable", "更新不可用"),
+        ("Hide Codex", "隐藏 Codex"),
+        ("Hide Others", "隐藏其他"),
+        ("Show All", "全部显示"),
+        ("Quit Codex", "退出 Codex"),
+        ("Services", "服务"),
+        ("Minimize", "最小化"),
+        ("Close Window", "关闭窗口"),
+        ("Bring All to Front", "全部置于前台"),
+    ]
+}
+
+fn renderer_text_translations() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("Chats", "对话"),
+        ("Projects", "项目"),
+        ("Settings", "设置"),
+        ("Automations", "自动化"),
+        ("Skills", "技能"),
+        ("Plugins", "插件"),
+        ("Plugin", "插件"),
+        ("New chat", "新建对话"),
+        ("New Chat", "新建对话"),
+        ("Search", "搜索"),
+        ("Search chats", "搜索对话"),
+        ("Search Chats", "搜索对话"),
+        ("Search plugins", "搜索插件"),
+        ("Archived conversations", "已归档对话"),
+        ("Local Environments", "本地环境"),
+        ("Worktrees", "工作树"),
+        ("Model Context Protocol", "模型上下文协议"),
+        ("Troubleshooting", "故障排查"),
+        ("What's new", "更新内容"),
+        ("What should we get done?", "今天要完成什么？"),
+        ("Do anything", "输入你的任务"),
+        ("Install", "安装"),
+        ("Back to app", "返回应用"),
+        ("General", "通用"),
+        ("Appearance", "外观"),
+        ("Configuration", "配置"),
+        ("Personalization", "个性化"),
+        ("Keyboard shortcuts", "键盘快捷键"),
+        ("Integrations", "集成"),
+        ("MCP servers", "MCP 服务器"),
+        ("Browser", "浏览器"),
+        ("Computer use", "电脑使用"),
+        ("Coding", "编程"),
+        ("Hooks", "钩子"),
+        ("Git", "Git"),
+        ("Environments", "环境"),
+        ("Archived", "已归档"),
+        ("Archived chats", "已归档对话"),
+        ("Chat Settings", "聊天设置"),
+        ("Work mode", "工作模式"),
+        ("Choose how much technical detail Codex shows", "选择 Codex 显示多少技术细节"),
+        ("For coding", "用于编程"),
+        ("More technical responses and control", "更多技术细节和控制"),
+        ("For everyday work", "用于日常工作"),
+        ("Same power, less technical detail", "同样能力，更少技术细节"),
+        ("Permissions", "权限"),
+        ("Default permissions", "默认权限"),
+        ("By default, Codex can read and edit files in its workspace. It can ask for additional access when needed", "默认情况下，Codex 可以读取和编辑工作区文件，需要时会请求额外权限"),
+        ("Full access", "完全访问"),
+        ("When Codex runs with full access, it can edit any file on your computer and run commands with network, without your approval. This significantly increases the risk of data loss, leaks, or unexpected behavior.", "开启完全访问后，Codex 可以编辑电脑上的任意文件并运行联网命令，且不再需要你的确认。这会明显增加数据丢失、泄露或异常行为的风险。"),
+        ("Learn more", "了解更多"),
+        ("Default file open destination", "默认文件打开位置"),
+        ("Where files and folders open by default", "文件和文件夹默认打开的位置"),
+        ("No targets found", "未找到目标"),
+        ("Integrated terminal shell", "集成终端 Shell"),
+        ("Choose which shell opens in the integrated terminal.", "选择集成终端默认打开的 Shell。"),
+        ("By OpenAI", "OpenAI 提供"),
+        ("By your workspace", "工作区提供"),
+        ("Personal", "个人"),
+        ("Creativity", "创意"),
+        ("Data & Analytics", "数据分析"),
+        ("Developer Tools", "开发工具"),
+        ("Work with Codex across your favorite tools", "让 Codex 连接你常用的工具"),
+        ("No chats", "暂无对话"),
+        ("Account", "账号"),
     ]
 }
 
@@ -591,7 +603,7 @@ mod tests {
 
         assert!(script.contains("Menu.setApplicationMenu"));
         assert!(script.contains("Toggle Sidebar"));
-        assert!(script.contains("切换边栏"));
+        assert!(script.contains("切换侧边栏"));
         assert!(!script.contains("app.asar"));
     }
 
@@ -612,13 +624,18 @@ mod tests {
         assert!(script.contains("Back to app"));
         assert!(script.contains("Work mode"));
         assert!(script.contains("Default permissions"));
+        assert!(script.contains("默认权限"));
         assert!(!script.contains("app.asar"));
     }
 
     #[test]
-    fn cdp_evaluator_registers_renderer_script_for_new_documents() {
-        assert!(POWERSHELL_CDP_EVALUATE.contains("Page.addScriptToEvaluateOnNewDocument"));
-        assert!(POWERSHELL_CDP_EVALUATE.contains("Runtime.evaluate"));
-        assert!(POWERSHELL_CDP_EVALUATE.contains("SY_CODEX_REGISTER_DOCUMENT"));
+    fn cdp_evaluator_uses_rust_websocket_instead_of_powershell() {
+        assert!(
+            renderer_locale_localizer_script().contains("Page.addScriptToEvaluateOnNewDocument")
+                == false
+        );
+        assert!(
+            !std::any::type_name::<WebSocket<MaybeTlsStream<TcpStream>>>().contains("PowerShell")
+        );
     }
 }

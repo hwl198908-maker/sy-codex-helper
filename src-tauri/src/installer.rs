@@ -133,20 +133,17 @@ pub fn open_codex(enhanced_menu: Option<bool>) -> Result<(), String> {
 fn open_codex_with_enhancements() -> Result<(), String> {
     let remote_debugging_port = select_local_port(39220);
     let inspector_port = select_local_port(remote_debugging_port.saturating_add(100));
-    let arguments = command_line_arguments(&build_codex_enhanced_args(
-        remote_debugging_port,
-        inspector_port,
-    ));
+    let args = build_codex_enhanced_args(remote_debugging_port, inspector_port);
 
     crate::diagnostics::append(
         "open_codex.enhanced_activate_start",
         serde_json::json!({
             "remoteDebuggingPort": remote_debugging_port,
             "inspectorPort": inspector_port,
-            "arguments": arguments,
+            "arguments": args,
         }),
     );
-    let process_id = activate_packaged_codex(&arguments)?;
+    let process_id = activate_packaged_codex(&args)?;
     crate::diagnostics::append(
         "open_codex.enhanced_activate_ok",
         serde_json::json!({
@@ -686,7 +683,7 @@ fn quote_windows_argument(arg: &str) -> String {
 }
 
 #[cfg(windows)]
-fn activate_packaged_codex(arguments: &str) -> Result<u32, String> {
+fn activate_packaged_codex(args: &[String]) -> Result<u32, String> {
     use windows::core::HSTRING;
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_LOCAL_SERVER,
@@ -695,6 +692,7 @@ fn activate_packaged_codex(arguments: &str) -> Result<u32, String> {
     use windows::Win32::UI::Shell::{ApplicationActivationManager, IApplicationActivationManager};
 
     const CODEX_APP_USER_MODEL_ID: &str = "OpenAI.Codex_2p2nqsd0c76g0!App";
+    let arguments = command_line_arguments(args);
 
     unsafe {
         let coinit = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
@@ -729,9 +727,19 @@ fn activate_packaged_codex(arguments: &str) -> Result<u32, String> {
     }
 }
 
-#[cfg(not(windows))]
-fn activate_packaged_codex(_arguments: &str) -> Result<u32, String> {
-    Err("Codex 增强启动仅支持 Windows。".to_string())
+#[cfg(target_os = "macos")]
+fn activate_packaged_codex(args: &[String]) -> Result<u32, String> {
+    let mut command = Command::new("open");
+    command.args(["-a", "Codex", "--args"]).args(args);
+    let child = command
+        .spawn()
+        .map_err(|err| format!("Failed to open Codex with enhancements: {err}"))?;
+    Ok(child.id())
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
+fn activate_packaged_codex(_args: &[String]) -> Result<u32, String> {
+    Err("Codex Chinese enhancement supports Windows and macOS only.".to_string())
 }
 
 #[cfg(test)]
@@ -885,10 +893,7 @@ mod tests {
             package.package_url,
             "https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_aarch64.dmg"
         );
-        assert_eq!(
-            download_file_name(package),
-            "CodexAppManager_aarch64.dmg"
-        );
+        assert_eq!(download_file_name(package), "CodexAppManager_aarch64.dmg");
     }
 
     #[test]
@@ -970,5 +975,14 @@ mod tests {
             quote_windows_argument(r#"value "quoted""#),
             r#""value \"quoted\"""#
         );
+    }
+
+    #[test]
+    fn enhanced_codex_args_include_renderer_and_node_debug_ports() {
+        let args = build_codex_enhanced_args(39220, 39320);
+
+        assert!(args.contains(&"--remote-debugging-port=39220".to_string()));
+        assert!(args.contains(&"--remote-allow-origins=http://127.0.0.1:39220".to_string()));
+        assert!(args.contains(&"--inspect=127.0.0.1:39320".to_string()));
     }
 }
