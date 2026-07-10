@@ -269,9 +269,7 @@ pub fn renderer_locale_localizer_script() -> String {
         r#"
 (() => {{
   const locale = "zh-CN";
-  if (window.__syCodexForceChineseLocaleInstalled === "1") {{
-    return JSON.stringify({{ status: "already-installed", locale }});
-  }}
+  const alreadyInstalled = window.__syCodexForceChineseLocaleInstalled === "1";
   window.__syCodexForceChineseLocaleInstalled = "1";
   const languages = [locale, "zh", "en-US", "en"];
 
@@ -443,14 +441,18 @@ pub fn renderer_locale_localizer_script() -> String {
     return changed;
   }};
 
-  const scheduleNavigationTranslation = () => {{
-    window.clearTimeout(window.__syCodexNavigationTranslationTimer);
-    window.__syCodexNavigationTranslationTimer = window.setTimeout(() => translateNavigationText(), 80);
+  const runNavigationTranslation = () => {{
+    translateNavigationText();
+    console.info("[SY Codex] navigation translations applied", window.__syCodexNavigationTranslationCount || 0);
   }};
 
-  translateNavigationText();
-  console.info("[SY Codex] navigation translations applied", window.__syCodexNavigationTranslationCount || 0);
-  if (!window.__syCodexNavigationObserver) {{
+  const scheduleNavigationTranslation = () => {{
+    window.clearTimeout(window.__syCodexNavigationTranslationTimer);
+    window.__syCodexNavigationTranslationTimer = window.setTimeout(runNavigationTranslation, 80);
+  }};
+
+  const installNavigationObserver = () => {{
+    if (window.__syCodexNavigationObserver || !document.documentElement) return;
     window.__syCodexNavigationObserver = new MutationObserver(scheduleNavigationTranslation);
     window.__syCodexNavigationObserver.observe(document.documentElement, {{
       childList: true,
@@ -459,9 +461,20 @@ pub fn renderer_locale_localizer_script() -> String {
       attributes: true,
       attributeFilter: ["aria-label", "title", "placeholder", "data-app-action-sidebar-section-heading"],
     }});
+  }};
+
+  const activateNavigationTranslation = () => {{
+    installNavigationObserver();
+    runNavigationTranslation();
+  }};
+
+  if (document.readyState === "loading") {{
+    document.addEventListener("DOMContentLoaded", activateNavigationTranslation, {{ once: true }});
+  }} else {{
+    activateNavigationTranslation();
   }}
 
-  return JSON.stringify({{ status: "ok", locale, navigationFallback: true }});
+  return JSON.stringify({{ status: alreadyInstalled ? "reapplied" : "ok", locale, navigationFallback: true }});
 }})()
 "#
     )
@@ -626,6 +639,14 @@ mod tests {
         assert!(script.contains("Default permissions"));
         assert!(script.contains("默认权限"));
         assert!(!script.contains("app.asar"));
+    }
+
+    #[test]
+    fn renderer_localizer_runs_again_after_the_document_is_ready() {
+        let script = renderer_locale_localizer_script();
+
+        assert!(script.contains("DOMContentLoaded"));
+        assert!(script.contains("runNavigationTranslation"));
     }
 
     #[test]
