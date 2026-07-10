@@ -1,16 +1,16 @@
 {
-  "version": "0.2.5",
-  "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.5_x64-setup.exe",
-  "sha256": "8e76d3a90be89982b2e767e0a68b06685b3c84848fa5946224a7fdad6c351e3d",
-  "notes": "\u91cd\u505a Windows \u548c macOS \u53cc\u7cfb\u7edf Codex \u4e2d\u6587\u589e\u5f3a\uff1a\u6c49\u5316\u6ce8\u5165\u6539\u4e3a\u5185\u7f6e WebSocket\uff0c\u4e0d\u518d\u4f9d\u8d56 PowerShell\uff1bmacOS \u6253\u5f00 Codex \u65f6\u4f1a\u540c\u6b65\u542f\u7528\u9875\u9762\u4e0e\u83dc\u5355\u6c49\u5316\u53c2\u6570\u3002",
+  "version": "0.2.6",
+  "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
+  "sha256": "2ed911e4308d38365610cee7cad91f9b0f6448e6d8ad9f1698737e6a12d13879",
+  "notes": "修复 Codex 桌面 App 汉化启动时机：页面加载完成后会重新翻译菜单、导航和设置页，并持续处理页面切换。",
   "downloads": {
     "windows-x64": {
-      "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.5_x64-setup.exe",
-      "sha256": "8e76d3a90be89982b2e767e0a68b06685b3c84848fa5946224a7fdad6c351e3d"
+      "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
+      "sha256": "2ed911e4308d38365610cee7cad91f9b0f6448e6d8ad9f1698737e6a12d13879"
     },
     "macos-arm64": {
-      "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_0.2.5_aarch64.dmg",
-      "sha256": "c99ab746280ea7aa232482d8d0e80486c62fa4ae4658754ad4bec69dae29db49"
+      "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_aarch64.dmg",
+      "sha256": "80718dc33a091019613bdc56ef9e98dcec4305ad459c564d8a85575bc0518cd9"
     }
   }
 }
