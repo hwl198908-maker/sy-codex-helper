@@ -1,16 +1,16 @@
 {
-  "version": "0.2.6",
+  "version": "0.2.7",
   "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
-  "sha256": "2ed911e4308d38365610cee7cad91f9b0f6448e6d8ad9f1698737e6a12d13879",
-  "notes": "修复 Codex 桌面 App 汉化启动时机：页面加载完成后会重新翻译菜单、导航和设置页，并持续处理页面切换。",
+  "sha256": "f833dfa89701da929ec78eb9b4b514bf1c0f7c3147520a71c3defc5c8dd87edb",
+  "notes": "补齐顶部菜单、任务右键菜单与设置页中文翻译；新增未覆盖系统 UI 文案检测日志，便于后续跟进官方更新。",
   "downloads": {
     "windows-x64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
-      "sha256": "2ed911e4308d38365610cee7cad91f9b0f6448e6d8ad9f1698737e6a12d13879"
+      "sha256": "f833dfa89701da929ec78eb9b4b514bf1c0f7c3147520a71c3defc5c8dd87edb"
     },
     "macos-arm64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_aarch64.dmg",
-      "sha256": "80718dc33a091019613bdc56ef9e98dcec4305ad459c564d8a85575bc0518cd9"
+      "sha256": "5a541f4a899c58e4c0f03efea6fb8b55e29fd176f6d0da56b0a602a74591df2b"
     }
   }
 }
