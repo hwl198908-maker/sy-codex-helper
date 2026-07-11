@@ -24,7 +24,7 @@ export type MirrorToolPackage = {
 
 export type ProviderProtocol = "responses" | "chat_completions";
 
-export type ProviderPresetId = "sy_api" | "deepseek" | "zhipu" | "custom";
+export type ProviderPresetId = "sy_api" | "openai" | "deepseek" | "zhipu" | "custom";
 
 export type ProviderConfig = {
   name: string;

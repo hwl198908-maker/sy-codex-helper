@@ -22,6 +22,15 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     editable: false
   },
   {
+    id: "openai",
+    name: "OpenAI 官方",
+    description: "使用 OpenAI 官方 API Key 直连",
+    baseUrl: "https://api.openai.com/v1",
+    protocol: "responses",
+    defaultModel: DEFAULT_PROVIDER_MODEL,
+    editable: false
+  },
+  {
     id: "deepseek",
     name: "DeepSeek 官方",
     description: "DeepSeek 官方 OpenAI 兼容接口",

@@ -28,10 +28,13 @@ describe("provider presets", () => {
   it("includes official provider options and custom", () => {
     expect(PROVIDER_PRESETS.map((preset) => preset.id)).toEqual([
       "sy_api",
+      "openai",
       "deepseek",
       "zhipu",
       "custom"
     ]);
+    expect(getProviderPreset("openai").baseUrl).toBe("https://api.openai.com/v1");
+    expect(getProviderPreset("openai").protocol).toBe("responses");
     expect(getProviderPreset("deepseek").baseUrl).toBe("https://api.deepseek.com");
     expect(getProviderPreset("zhipu").baseUrl).toBe("https://open.bigmodel.cn/api/coding/paas/v4");
     expect(getProviderPreset("custom").editable).toBe(true);
