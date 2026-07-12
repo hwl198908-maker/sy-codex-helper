@@ -87,16 +87,19 @@ fn build_config_toml(existing_config: &str, provider: &CodexProviderConfig) -> S
 
 fn preserve_unmanaged_config(existing_config: &str) -> String {
     let mut preserved = Vec::new();
-    let mut in_custom_provider = false;
+    let mut in_managed_provider = false;
 
     for line in existing_config.lines() {
         let trimmed = line.trim();
 
         if is_toml_header(trimmed) {
-            in_custom_provider = trimmed == "[model_providers.custom]";
+            in_managed_provider = matches!(
+                trimmed,
+                "[model_providers.custom]" | "[model_providers.openai]"
+            );
         }
 
-        if in_custom_provider {
+        if in_managed_provider {
             continue;
         }
 
@@ -132,24 +135,35 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
         .filter(|value| !value.is_empty())
         .unwrap_or("gpt-5");
     let wire_api = codex_wire_api(&provider.protocol);
+    let provider_key = managed_provider_key(provider);
 
     format!(
         concat!(
             "model = {}\n",
-            "model_provider = \"custom\"\n",
+            "model_provider = {}\n",
             "cli_auth_credentials_store = \"file\"\n",
             "\n",
-            "[model_providers.custom]\n",
+            "[model_providers.{}]\n",
             "name = {}\n",
             "base_url = {}\n",
             "wire_api = {}\n",
             "requires_openai_auth = true\n"
         ),
         toml_string(model),
+        toml_string(provider_key),
+        provider_key,
         toml_string(&provider.name),
         toml_string(&provider.base_url),
         toml_string(wire_api)
     )
+}
+
+fn managed_provider_key(provider: &CodexProviderConfig) -> &'static str {
+    if provider.base_url.trim_end_matches('/') == "https://api.openai.com/v1" {
+        "openai"
+    } else {
+        "custom"
+    }
 }
 
 fn codex_wire_api(protocol: &str) -> &str {
@@ -400,6 +414,24 @@ mod tests {
         let config_toml = build_managed_config_toml(&provider);
 
         assert!(config_toml.contains(r#"wire_api = "responses""#));
+    }
+
+    #[test]
+    fn uses_the_official_openai_provider_for_the_openai_api_url() {
+        let provider = CodexProviderConfig {
+            name: "OpenAI 官方".to_string(),
+            base_url: "https://api.openai.com/v1".to_string(),
+            api_key: "test-key".to_string(),
+            protocol: "responses".to_string(),
+            default_model: Some("gpt-5.5".to_string()),
+            user_agent: "CodexManager/1.0".to_string(),
+        };
+
+        let config_toml = build_managed_config_toml(&provider);
+
+        assert!(config_toml.contains(r#"model_provider = "openai""#));
+        assert!(config_toml.contains("[model_providers.openai]"));
+        assert!(!config_toml.contains("[model_providers.custom]"));
     }
 
     #[test]
