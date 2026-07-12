@@ -1,16 +1,16 @@
 {
-  "version": "0.2.7",
+  "version": "0.3.1",
   "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
-  "sha256": "f833dfa89701da929ec78eb9b4b514bf1c0f7c3147520a71c3defc5c8dd87edb",
-  "notes": "补齐顶部菜单、任务右键菜单与设置页中文翻译；新增未覆盖系统 UI 文案检测日志，便于后续跟进官方更新。",
+  "sha256": "e8a4b41a1a3330b76ed42bd882854645c33e80d26574604e7ee70328ccfcace2",
+  "notes": "Fix macOS SY API direct key authentication. Proxy providers no longer use OpenAI OAuth.",
   "downloads": {
     "windows-x64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
-      "sha256": "f833dfa89701da929ec78eb9b4b514bf1c0f7c3147520a71c3defc5c8dd87edb"
+      "sha256": "e8a4b41a1a3330b76ed42bd882854645c33e80d26574604e7ee70328ccfcace2"
     },
     "macos-arm64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_aarch64.dmg",
-      "sha256": "5a541f4a899c58e4c0f03efea6fb8b55e29fd176f6d0da56b0a602a74591df2b"
+      "sha256": "8f7fb0e6441f61e88b5f04c989d0b905621dc943fe0a6fdf620b64bd5b2c8bf1"
     }
   }
 }
