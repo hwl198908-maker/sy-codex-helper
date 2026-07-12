@@ -136,6 +136,7 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
         .unwrap_or("gpt-5");
     let wire_api = codex_wire_api(&provider.protocol);
     let provider_key = managed_provider_key(provider);
+    let requires_openai_auth = provider_key == "openai";
 
     format!(
         concat!(
@@ -147,14 +148,15 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
             "name = {}\n",
             "base_url = {}\n",
             "wire_api = {}\n",
-            "requires_openai_auth = true\n"
+            "requires_openai_auth = {}\n"
         ),
         toml_string(model),
         toml_string(provider_key),
         provider_key,
         toml_string(&provider.name),
         toml_string(&provider.base_url),
-        toml_string(wire_api)
+        toml_string(wire_api),
+        requires_openai_auth,
     )
 }
 
@@ -245,7 +247,7 @@ mod tests {
         assert!(config_toml.contains(r#"model_provider = "custom""#));
         assert!(config_toml.contains(r#"base_url = "https://proxy.test/v1""#));
         assert!(config_toml.contains(r#"wire_api = "chat""#));
-        assert!(config_toml.contains("requires_openai_auth = true"));
+        assert!(config_toml.contains("requires_openai_auth = false"));
         assert!(!config_toml.contains("User-Agent"));
         assert!(!config_toml.contains("CodexManager/1.0"));
 
@@ -391,7 +393,7 @@ mod tests {
         assert!(config_toml.contains(r#"name = "New Proxy""#));
         assert!(config_toml.contains(r#"base_url = "https://new.test/v1""#));
         assert!(config_toml.contains(r#"wire_api = "responses""#));
-        assert!(config_toml.contains("requires_openai_auth = true"));
+        assert!(config_toml.contains("requires_openai_auth = false"));
         assert!(!config_toml.contains("old-model"));
         assert!(!config_toml.contains("old-provider"));
         assert!(!config_toml.contains("old-store"));
@@ -414,6 +416,22 @@ mod tests {
         let config_toml = build_managed_config_toml(&provider);
 
         assert!(config_toml.contains(r#"wire_api = "responses""#));
+    }
+
+    #[test]
+    fn proxy_providers_do_not_require_openai_oauth() {
+        let provider = CodexProviderConfig {
+            name: "SY API".to_string(),
+            base_url: "https://www.syapi.vip/v1".to_string(),
+            api_key: "test-key".to_string(),
+            protocol: "responses".to_string(),
+            default_model: Some("gpt-5.5".to_string()),
+            user_agent: "CodexManager/1.0".to_string(),
+        };
+
+        let config_toml = build_managed_config_toml(&provider);
+
+        assert!(config_toml.contains("requires_openai_auth = false"));
     }
 
     #[test]
