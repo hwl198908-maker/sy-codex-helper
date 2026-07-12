@@ -62,6 +62,13 @@ describe("final package guidance", () => {
     expect(installStep).toContain("<Progress");
   });
 
+  it("shows the Mac Gatekeeper command for the unsigned app", () => {
+    const installStep = readProjectFile("src/components/InstallStep.tsx");
+
+    expect(installStep).toContain('installTarget.platform === "macos-arm64"');
+    expect(installStep).toContain('xattr -dr com.apple.quarantine "/Applications/SY Codex.app"');
+  });
+
   it("keeps completion and feedback behavior discoverable", () => {
     const completeStep = readProjectFile("src/components/CompleteStep.tsx");
     const feedbackStep = readProjectFile("src/components/FeedbackStep.tsx");

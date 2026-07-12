@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Alert, Button, Group, Paper, Progress, Stack, Text, TextInput, Title } from "@mantine/core";
+import { Alert, Button, Code, Group, Paper, Progress, Stack, Text, TextInput, Title } from "@mantine/core";
 import {
   DEFAULT_MACOS_ARM64_MIRROR_BASE_URL,
   DEFAULT_WINDOWS_MIRROR_BASE_URL
@@ -143,6 +143,18 @@ export function InstallStep() {
             下载并安装 Codex
           </Button>
         </Group>
+
+        {installTarget.platform === "macos-arm64" && (
+          <Alert color="yellow" variant="light">
+            <Stack gap={6}>
+              <Text fw={700}>Mac 提示“App 已损坏”时</Text>
+              <Text size="sm">1. 先将 SY Codex.app 拖入“应用程序”文件夹。</Text>
+              <Text size="sm">2. 打开“终端”，粘贴下面命令并按回车。</Text>
+              <Code block>xattr -dr com.apple.quarantine "/Applications/SY Codex.app"</Code>
+              <Text size="sm">3. 回到“应用程序”，重新打开 SY Codex.app。</Text>
+            </Stack>
+          </Alert>
+        )}
 
         <Alert color={error ? "red" : "blue"} variant="light">
           {error && <Text>{error}</Text>}

@@ -31,6 +31,14 @@ https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_x64-setup.exe
 
 macOS Apple Silicon:
 https://codexapp.agentsmirror.com/manager/latest/CodexAppManager_aarch64.dmg
+
+### macOS Gatekeeper
+
+If macOS reports that `SY Codex.app` is damaged, move it to Applications, open Terminal, and run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/SY Codex.app"
+```
 ```
 
 如果使用清单格式，字段保持如下结构：
