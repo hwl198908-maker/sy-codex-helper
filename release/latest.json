@@ -1,16 +1,16 @@
 {
-  "version": "0.3.1",
+  "version": "0.3.2",
   "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
-  "sha256": "e8a4b41a1a3330b76ed42bd882854645c33e80d26574604e7ee70328ccfcace2",
-  "notes": "Fix macOS SY API direct key authentication. Proxy providers no longer use OpenAI OAuth.",
+  "sha256": "b9e7585fe338c8246c596a6b6a96ad9ed1fe501943343270fb72399eaf12cd82",
+  "notes": "Fix proxy API authentication in Codex Desktop on macOS and Windows.",
   "downloads": {
     "windows-x64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_x64-setup.exe",
-      "sha256": "e8a4b41a1a3330b76ed42bd882854645c33e80d26574604e7ee70328ccfcace2"
+      "sha256": "b9e7585fe338c8246c596a6b6a96ad9ed1fe501943343270fb72399eaf12cd82"
     },
     "macos-arm64": {
       "downloadUrl": "https://www.syapi.vip/codex-manager/SY-Codex_aarch64.dmg",
-      "sha256": "8f7fb0e6441f61e88b5f04c989d0b905621dc943fe0a6fdf620b64bd5b2c8bf1"
+      "sha256": "1fb8bdebe0e95a6d43fb040d576ba29f3d5f80ce072fc9e9dccc685f23395ae5"
     }
   }
 }
