@@ -137,6 +137,9 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
     let wire_api = codex_wire_api(&provider.protocol);
     let provider_key = managed_provider_key(provider);
     let requires_openai_auth = provider_key == "openai";
+    let bearer_token_line = (!requires_openai_auth)
+        .then(|| format!("experimental_bearer_token = {}\n", toml_string(&provider.api_key)))
+        .unwrap_or_default();
 
     format!(
         concat!(
@@ -148,7 +151,8 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
             "name = {}\n",
             "base_url = {}\n",
             "wire_api = {}\n",
-            "requires_openai_auth = {}\n"
+            "requires_openai_auth = {}\n",
+            "{}"
         ),
         toml_string(model),
         toml_string(provider_key),
@@ -157,6 +161,7 @@ fn build_managed_config_toml(provider: &CodexProviderConfig) -> String {
         toml_string(&provider.base_url),
         toml_string(wire_api),
         requires_openai_auth,
+        bearer_token_line,
     )
 }
 
@@ -248,6 +253,7 @@ mod tests {
         assert!(config_toml.contains(r#"base_url = "https://proxy.test/v1""#));
         assert!(config_toml.contains(r#"wire_api = "chat""#));
         assert!(config_toml.contains("requires_openai_auth = false"));
+        assert!(config_toml.contains(r#"experimental_bearer_token = "test-key""#));
         assert!(!config_toml.contains("User-Agent"));
         assert!(!config_toml.contains("CodexManager/1.0"));
 
